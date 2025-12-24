@@ -1,29 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'core/theme.dart';
 import 'services/auth_service.dart';
 import 'ui/auth/login_screen.dart';
 import 'ui/dashboard/dashboard_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Set status bar style
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+  
   runApp(
     ChangeNotifierProvider(
       create: (_) => AuthService(),
-      child: const MyApp(),
+      child: const SimsForPlantsApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class SimsForPlantsApp extends StatelessWidget {
+  const SimsForPlantsApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Sims for Plants',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.theme,
       home: const AuthWrapper(),
     );
   }
@@ -34,11 +44,10 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // This watches for changes in AuthService
     final auth = Provider.of<AuthService>(context);
     
-    // Flow logic: If we have a token, show Dashboard. Otherwise, Login.
-    if (auth.idToken != null) {
+    // Show dashboard if authenticated, otherwise login
+    if (auth.isAuthenticated) {
       return const DashboardScreen();
     }
     return const LoginScreen();

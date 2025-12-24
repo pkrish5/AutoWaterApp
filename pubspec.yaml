@@ -38,6 +38,7 @@ dependencies:
   amazon_cognito_identity_dart_2: ^3.8.1
   provider: ^6.1.5+1
   image_picker: ^1.2.1
+  google_fonts: ^6.3.3
 
 dev_dependencies:
   flutter_test:
