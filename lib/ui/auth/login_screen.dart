@@ -105,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                       ),
                       const SizedBox(height: 28),
                       Text(
-                        'Sims for Plants',
+                        'Rootwise',
                         style: GoogleFonts.comfortaa(
                           fontSize: 34,
                           fontWeight: FontWeight.bold,

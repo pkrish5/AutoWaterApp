@@ -25,6 +25,8 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   WateringSchedule? _schedule;
   bool _isLoading = true;
   bool _isWatering = false;
+  bool _isRefilling = false;
+  bool _needsDashboardRefresh = false;
   String? _error;
 
   @override
@@ -33,42 +35,14 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     _loadData();
   }
 
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
-
-    try {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final api = ApiService(auth.idToken!);
-
-      // Only load water level and schedule if device is linked
-      if (widget.plant.hasDevice) {
-        final waterLevel = await api.getWaterLevel(widget.plant.plantId);
-        final schedule = await api.getWateringSchedule(widget.plant.plantId);
-
-        if (mounted) {
-          setState(() {
-            _waterLevel = waterLevel;
-            _schedule = schedule;
-          });
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _error = e.toString());
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   Future<void> _triggerWatering() async {
     if (!widget.plant.hasDevice) {
       _showSnackBar('Please link a device first', isError: true);
+      return;
+    }
+
+    if (_waterLevel != null && _waterLevel!.needsRefill) {
+      _showSnackBar('Please refill the water tank first', isError: true);
       return;
     }
 
@@ -82,6 +56,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
         widget.plant.plantId,
         amountML: _schedule?.amountML ?? 100,
       );
+      _needsDashboardRefresh = true;
 
       _showSnackBar('Watering started! ${result['amountML']}mL');
       _loadData(); // Refresh water level
@@ -93,17 +68,134 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   }
 
   Future<void> _refillWater() async {
+    setState(() => _isRefilling = true);
+
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
 
-      await api.refillWater(widget.plant.plantId);
-      _showSnackBar('Water tank refilled!');
+      await api.refillWater(widget.plant.plantId, markFull: true);
+      _needsDashboardRefresh = true;
+      _showSnackBar('Water tank marked as full!');
       _loadData();
     } catch (e) {
-      _showSnackBar('Failed to mark as refilled', isError: true);
+      _showSnackBar('Failed to mark as refilled: $e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isRefilling = false);
     }
   }
+
+  void _showRefillDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.water_drop, color: AppTheme.waterBlue),
+            const SizedBox(width: 12),
+            Text(
+              'Refill Water Tank',
+              style: GoogleFonts.comfortaa(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.soilBrown,
+                fontSize: 18,
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Have you refilled the water container?',
+              style: GoogleFonts.quicksand(color: AppTheme.soilBrown),
+            ),
+            const SizedBox(height: 12),
+            if (_waterLevel != null)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.softSage.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 20, color: AppTheme.leafGreen),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Current: ${_waterLevel!.currentWaterLevel}mL / ${_waterLevel!.containerSize}mL',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 13,
+                          color: AppTheme.soilBrown.withOpacity(0.8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.quicksand(
+                color: AppTheme.soilBrown.withOpacity(0.7),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.pop(context);
+              _refillWater();
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: Text(
+              'Mark as Full',
+              style: GoogleFonts.quicksand(fontWeight: FontWeight.w600),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.waterBlue,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+ 
+
+ Future<void> _loadData() async {
+  setState(() {
+    _isLoading = true;
+    _error = null;
+  });
+
+  final auth = Provider.of<AuthService>(context, listen: false);
+  final api = ApiService(auth.idToken!);
+
+  try {
+    final waterLevel = await api.getWaterLevel(widget.plant.plantId);
+    if (mounted) setState(() => _waterLevel = waterLevel);
+  } catch (e) {
+    debugPrint('WaterLevel failed: $e');
+  }
+
+  try {
+    final schedule = await api.getWateringSchedule(widget.plant.plantId);
+    if (mounted) setState(() => _schedule = schedule);
+  } catch (e) {
+    debugPrint('Schedule failed: $e');
+  }
+
+  if (mounted) {
+    setState(() => _isLoading = false);
+  }
+}
 
   void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -145,14 +237,19 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
 
     if (result == true) {
       _loadData();
-      // Refresh the plant data from parent
-      Navigator.pop(context, true);
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+Widget build(BuildContext context) {
+  return PopScope(
+    canPop: false, // we handle popping manually
+    onPopInvoked: (didPop) {
+      if (didPop) return;
+
+      Navigator.pop(context, _needsDashboardRefresh);
+    },
+    child: Scaffold(
       body: LeafBackground(
         leafCount: 4,
         child: SafeArea(
@@ -171,8 +268,9 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                             children: [
                               _buildPlantInfo(),
                               const SizedBox(height: 20),
-                              if (!widget.plant.hasDevice) _buildLinkDeviceCard(),
-                              if (widget.plant.hasDevice) ...[
+                              if (!widget.plant.hasDevice) ...[
+                                _buildLinkDeviceCard(),
+                              ] else if (_waterLevel != null) ...[
                                 _buildWaterLevelCard(),
                                 const SizedBox(height: 16),
                                 _buildQuickActions(),
@@ -192,8 +290,9 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildHeader() {
     return Padding(
@@ -201,7 +300,9 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
       child: Row(
         children: [
           IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              Navigator.pop(context, _needsDashboardRefresh);
+            },
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -342,11 +443,16 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   Widget _buildWaterLevelCard() {
     if (_waterLevel == null) return const SizedBox.shrink();
 
+    final percentage = _waterLevel!.waterPercentage;
+    final isLow = percentage < 20;
+    final isCritical = _waterLevel!.needsRefill;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        border: isCritical ? Border.all(color: AppTheme.terracotta, width: 2) : null,
         boxShadow: [
           BoxShadow(
             color: AppTheme.waterBlue.withOpacity(0.1),
@@ -359,7 +465,10 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
         children: [
           Row(
             children: [
-              const Icon(Icons.water_drop, color: AppTheme.waterBlue),
+              Icon(
+                Icons.water_drop,
+                color: isCritical ? AppTheme.terracotta : AppTheme.waterBlue,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Water Tank',
@@ -370,19 +479,42 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                 ),
               ),
               const Spacer(),
-              if (_waterLevel!.needsRefill)
+              if (isCritical)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: AppTheme.terracotta,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.warning, color: Colors.white, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Needs Refill!',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (isLow)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppTheme.terracotta.withOpacity(0.1),
+                    color: Colors.orange.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    'Needs Refill!',
+                    'Low',
                     style: GoogleFonts.quicksand(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppTheme.terracotta,
+                      color: Colors.orange,
                     ),
                   ),
                 ),
@@ -393,34 +525,36 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
           Stack(
             children: [
               Container(
-                height: 24,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: AppTheme.waterBlue.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppTheme.waterBlue.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
               FractionallySizedBox(
-                widthFactor: (_waterLevel!.waterPercentage / 100).clamp(0.0, 1.0),
+                widthFactor: (percentage / 100).clamp(0.0, 1.0),
                 child: Container(
-                  height: 24,
+                  height: 32,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [AppTheme.waterBlue, AppTheme.waterBlueDark],
+                      colors: isCritical
+                          ? [AppTheme.terracotta.withOpacity(0.8), AppTheme.terracotta]
+                          : isLow
+                              ? [Colors.orange.withOpacity(0.8), Colors.orange]
+                              : [AppTheme.waterBlue, AppTheme.waterBlueDark],
                     ),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
               ),
               Positioned.fill(
                 child: Center(
                   child: Text(
-                    '${_waterLevel!.waterPercentage.toInt()}%',
+                    '${percentage.toInt()}%',
                     style: GoogleFonts.quicksand(
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: _waterLevel!.waterPercentage > 50 
-                          ? Colors.white 
-                          : AppTheme.soilBrown,
+                      color: percentage > 40 ? Colors.white : AppTheme.soilBrown,
                     ),
                   ),
                 ),
@@ -428,22 +562,52 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
             ],
           ),
           const SizedBox(height: 12),
+          // Stats row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                '${_waterLevel!.currentWaterLevel}mL / ${_waterLevel!.containerSize}mL',
-                style: GoogleFonts.quicksand(
-                  fontSize: 13,
-                  color: AppTheme.soilBrown.withOpacity(0.7),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${_waterLevel!.currentWaterLevel}mL / ${_waterLevel!.containerSize}mL',
+                      style: GoogleFonts.quicksand(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.soilBrown,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Last refilled: ${_waterLevel!.lastRefilledFormatted}',
+                      style: GoogleFonts.quicksand(
+                        fontSize: 12,
+                        color: AppTheme.soilBrown.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              TextButton.icon(
-                onPressed: _refillWater,
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Mark Refilled'),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.waterBlue,
+              // Refill Button
+              ElevatedButton.icon(
+                onPressed: _isRefilling ? null : _showRefillDialog,
+                icon: _isRefilling
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Icon(Icons.local_drink, size: 18),
+                label: Text(
+                  'Refill',
+                  style: GoogleFonts.quicksand(fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.waterBlue,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 ),
               ),
             ],
@@ -454,15 +618,19 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   }
 
   Widget _buildQuickActions() {
+    final canWater = _waterLevel != null && !_waterLevel!.needsRefill;
+    
     return Row(
       children: [
         Expanded(
           child: _ActionButton(
             icon: Icons.water_drop,
             label: 'Water Now',
-            color: AppTheme.waterBlue,
+            color: canWater ? AppTheme.waterBlue : Colors.grey,
             isLoading: _isWatering,
-            onTap: _triggerWatering,
+            onTap: canWater ? _triggerWatering : () {
+              _showSnackBar('Please refill the water tank first', isError: true);
+            },
           ),
         ),
         const SizedBox(width: 12),
@@ -509,58 +677,60 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                 ),
               ),
               const Spacer(),
-              Switch(
-                value: _schedule!.enabled,
-                onChanged: (value) => _navigateToSchedule(),
-                activeColor: AppTheme.leafGreen,
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _schedule!.enabled 
+                      ? AppTheme.leafGreen.withOpacity(0.1)
+                      : AppTheme.soilBrown.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  _schedule!.enabled ? 'Active' : 'Off',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: _schedule!.enabled ? AppTheme.leafGreen : AppTheme.soilBrown,
+                  ),
+                ),
               ),
             ],
           ),
           if (_schedule!.enabled && _schedule!.recurringSchedule != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             Row(
               children: [
-                Icon(Icons.repeat, size: 16, color: AppTheme.soilBrown.withOpacity(0.5)),
-                const SizedBox(width: 8),
-                Text(
-                  _schedule!.recurringSchedule!.formattedDays,
-                  style: GoogleFonts.quicksand(
-                    fontSize: 14,
-                    color: AppTheme.soilBrown.withOpacity(0.7),
-                  ),
+                _ScheduleInfoChip(
+                  icon: Icons.repeat,
+                  text: _schedule!.recurringSchedule!.formattedDays,
                 ),
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(Icons.access_time, size: 16, color: AppTheme.soilBrown.withOpacity(0.5)),
-                const SizedBox(width: 8),
-                Text(
-                  _schedule!.recurringSchedule!.timeOfDay,
-                  style: GoogleFonts.quicksand(
-                    fontSize: 14,
-                    color: AppTheme.soilBrown.withOpacity(0.7),
-                  ),
+                _ScheduleInfoChip(
+                  icon: Icons.access_time,
+                  text: _schedule!.recurringSchedule!.timeOfDay,
                 ),
-                const SizedBox(width: 16),
-                Icon(Icons.water_drop, size: 16, color: AppTheme.soilBrown.withOpacity(0.5)),
-                const SizedBox(width: 4),
-                Text(
-                  '${_schedule!.amountML}mL',
-                  style: GoogleFonts.quicksand(
-                    fontSize: 14,
-                    color: AppTheme.soilBrown.withOpacity(0.7),
-                  ),
+                const SizedBox(width: 12),
+                _ScheduleInfoChip(
+                  icon: Icons.water_drop,
+                  text: '${_schedule!.amountML}mL',
+                ),
+                const SizedBox(width: 12),
+                _ScheduleInfoChip(
+                  icon: Icons.speed,
+                  text: '>${_schedule!.moistureThreshold}%',
                 ),
               ],
             ),
           ],
           if (!_schedule!.enabled)
             Padding(
-              padding: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.only(top: 12),
               child: Text(
-                'Automatic watering is disabled',
+                'Tap Schedule to set up automatic watering',
                 style: GoogleFonts.quicksand(
                   fontSize: 14,
                   color: AppTheme.soilBrown.withOpacity(0.5),
@@ -704,6 +874,38 @@ class _ActionButton extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ScheduleInfoChip extends StatelessWidget {
+  final IconData icon;
+  final String text;
+
+  const _ScheduleInfoChip({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.softSage.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppTheme.soilBrown.withOpacity(0.6)),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: GoogleFonts.quicksand(
+              fontSize: 13,
+              color: AppTheme.soilBrown.withOpacity(0.8),
+            ),
+          ),
+        ],
       ),
     );
   }

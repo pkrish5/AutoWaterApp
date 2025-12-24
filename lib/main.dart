@@ -20,18 +20,19 @@ void main() {
   runApp(
     ChangeNotifierProvider(
       create: (_) => AuthService(),
-      child: const SimsForPlantsApp(),
+      child: const RootwiseApp(),
     ),
   );
 }
 
-class SimsForPlantsApp extends StatelessWidget {
-  const SimsForPlantsApp({super.key});
+class RootwiseApp extends StatelessWidget {
+  const RootwiseApp({super.key});
+
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Sims for Plants',
+      title: 'Rootwise',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.theme,
       home: const AuthWrapper(),
