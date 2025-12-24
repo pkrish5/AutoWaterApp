@@ -49,9 +49,12 @@ class AuthService with ChangeNotifier {
   }
 
   // SIGN UP
-  Future<String?> signUp(String email, String password) async {
+  Future<String?> signUp(String email, String password, {String? name}) async {
     _setLoading(true);
-    final userAttributes = [AttributeArg(name: 'email', value: email)];
+    final userAttributes = [
+      AttributeArg(name: 'email', value: email),
+      if (name != null) AttributeArg(name: 'name', value: name),
+    ];
     
     try {
       await _userPool.signUp(email, password, userAttributes: userAttributes);

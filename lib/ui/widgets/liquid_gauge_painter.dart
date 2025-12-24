@@ -2,8 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 class LiquidGaugePainter extends CustomPainter {
-  final double value; // 0.0 to 1.0 (water level)
-  final double animationValue; // Controls horizontal wave movement
+  final double value;
+  final double animationValue;
   final Color waterColor;
   final Color waterColorLight;
 
@@ -19,13 +19,11 @@ class LiquidGaugePainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = math.min(size.width, size.height) / 2;
 
-    // Clip to circle
     canvas.save();
     canvas.clipPath(
       Path()..addOval(Rect.fromCircle(center: center, radius: radius)),
     );
 
-    // Background gradient
     final bgPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -37,7 +35,6 @@ class LiquidGaugePainter extends CustomPainter {
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
-    // Water gradient paint
     final waterPaint = Paint()
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
@@ -45,12 +42,10 @@ class LiquidGaugePainter extends CustomPainter {
         colors: [waterColorLight, waterColor],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
-    // Wave parameters
     double amplitude = 4.0;
     double waveLength = size.width * 0.8;
     double fillLevel = size.height * (1 - value);
 
-    // First wave (back layer - lighter)
     final backWavePath = Path();
     backWavePath.moveTo(0, fillLevel);
     for (double x = 0; x <= size.width; x++) {
@@ -66,7 +61,6 @@ class LiquidGaugePainter extends CustomPainter {
     final backWavePaint = Paint()..color = waterColorLight.withOpacity(0.5);
     canvas.drawPath(backWavePath, backWavePaint);
 
-    // Main wave (front layer)
     final wavePath = Path();
     wavePath.moveTo(0, fillLevel);
     for (double x = 0; x <= size.width; x++) {
@@ -81,7 +75,6 @@ class LiquidGaugePainter extends CustomPainter {
 
     canvas.drawPath(wavePath, waterPaint);
 
-    // Add shine effect
     final shinePaint = Paint()
       ..color = Colors.white.withOpacity(0.3)
       ..style = PaintingStyle.stroke
@@ -97,7 +90,6 @@ class LiquidGaugePainter extends CustomPainter {
 
     canvas.restore();
 
-    // Draw circle border
     final borderPaint = Paint()
       ..color = waterColor.withOpacity(0.3)
       ..style = PaintingStyle.stroke

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'liquid_gauge_painter.dart';
 
 class LiquidGauge extends StatefulWidget {
-  final double level; // 0.0 to 1.0
+  final double level;
   final double size;
   final Color? waterColor;
   final Color? waterColorLight;
@@ -21,7 +21,6 @@ class LiquidGauge extends StatefulWidget {
 
 class _LiquidGaugeState extends State<LiquidGauge> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<double> _levelAnimation;
   double _currentLevel = 0;
 
   @override
@@ -32,10 +31,6 @@ class _LiquidGaugeState extends State<LiquidGauge> with SingleTickerProviderStat
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
-
-    _levelAnimation = Tween<double>(begin: 0, end: widget.level).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
   }
 
   @override

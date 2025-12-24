@@ -23,7 +23,6 @@ class AppTheme {
         primary: leafGreen,
         secondary: terracotta,
         surface: warmCream,
-        background: warmCream,
       ),
       textTheme: GoogleFonts.quicksandTextTheme().copyWith(
         displayLarge: GoogleFonts.comfortaa(

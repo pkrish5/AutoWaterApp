@@ -18,7 +18,7 @@ class PlantCard extends StatelessWidget {
   }
 
   String get _plantEmoji {
-    switch (plant.archetype.toLowerCase()) {
+    switch (plant.species.toLowerCase()) {
       case 'vine':
         return '🌿';
       case 'spiky':
@@ -50,7 +50,6 @@ class PlantCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Header row with archetype and streak
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -61,7 +60,7 @@ class PlantCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      plant.archetype,
+                      plant.species,
                       style: GoogleFonts.quicksand(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -69,7 +68,29 @@ class PlantCard extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (plant.streak > 0)
+                  if (!plant.hasDevice)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.terracotta.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.link_off, size: 12, color: AppTheme.terracotta),
+                          const SizedBox(width: 2),
+                          Text(
+                            'No device',
+                            style: GoogleFonts.quicksand(
+                              fontSize: 9,
+                              color: AppTheme.terracotta,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else if (plant.streak > 0)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
@@ -95,7 +116,6 @@ class PlantCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-              // Plant name
               Text(
                 plant.nickname,
                 style: GoogleFonts.comfortaa(
@@ -108,7 +128,6 @@ class PlantCard extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),
-              // Liquid gauge with plant emoji overlay
               Expanded(
                 child: Stack(
                   alignment: Alignment.center,
@@ -124,7 +143,6 @@ class PlantCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 8),
-              // Status indicator
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(

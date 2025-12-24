@@ -110,7 +110,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                // Back button
                 Align(
                   alignment: Alignment.centerLeft,
                   child: IconButton(
@@ -120,19 +119,12 @@ class _VerificationScreenState extends State<VerificationScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 10,
-                          ),
-                        ],
                       ),
                       child: const Icon(Icons.arrow_back, color: AppTheme.leafGreen),
                     ),
                   ),
                 ),
                 const SizedBox(height: 40),
-                // Icon
                 Center(
                   child: Container(
                     padding: const EdgeInsets.all(20),
@@ -184,7 +176,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 40),
-                // Code input fields
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: List.generate(6, (index) {
@@ -228,7 +219,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
                           if (value.isEmpty && index > 0) {
                             _focusNodes[index - 1].requestFocus();
                           }
-                          // Auto-submit when all fields filled
                           if (_code.length == 6) {
                             _handleVerify();
                           }
@@ -238,7 +228,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   }),
                 ),
                 const SizedBox(height: 40),
-                // Verify button
                 SizedBox(
                   height: 56,
                   child: ElevatedButton(
@@ -269,7 +258,6 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Resend link
                 TextButton(
                   onPressed: _isResending ? null : _resendCode,
                   child: _isResending

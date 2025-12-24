@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../models/plant.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/loading_indicator.dart';
+import '../plant_detail/plant_detail_screen.dart';
 import './plant_card.dart';
 import 'add_plant_screen.dart';
 
@@ -43,6 +44,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const AddPlantScreen()),
+    );
+    if (result == true) {
+      _refreshPlants();
+    }
+  }
+
+  void _navigateToPlantDetail(Plant plant) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PlantDetailScreen(plant: plant)),
     );
     if (result == true) {
       _refreshPlants();
@@ -244,9 +255,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         itemCount: plants.length,
                         itemBuilder: (context, index) => PlantCard(
                           plant: plants[index],
-                          onTap: () {
-                            // TODO: Navigate to plant detail screen
-                          },
+                          onTap: () => _navigateToPlantDetail(plants[index]),
                         ),
                       );
                     },

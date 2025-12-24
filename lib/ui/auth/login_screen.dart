@@ -86,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 60),
-                      // Logo area
                       Center(
                         child: Container(
                           padding: const EdgeInsets.all(20),
@@ -105,7 +104,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ),
                       ),
                       const SizedBox(height: 28),
-                      // Title
                       Text(
                         'Sims for Plants',
                         style: GoogleFonts.comfortaa(
@@ -125,7 +123,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 48),
-                      // Email field
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -140,7 +137,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         },
                       ),
                       const SizedBox(height: 20),
-                      // Password field
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -161,7 +157,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         },
                       ),
                       const SizedBox(height: 36),
-                      // Login button
                       SizedBox(
                         height: 56,
                         child: ElevatedButton(
@@ -192,7 +187,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ),
                       ),
                       const SizedBox(height: 24),
-                      // Sign up link
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

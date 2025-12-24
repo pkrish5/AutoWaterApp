@@ -15,8 +15,10 @@ class AddPlantScreen extends StatefulWidget {
 
 class _AddPlantScreenState extends State<AddPlantScreen> {
   final _nameController = TextEditingController();
+  final _deviceIdController = TextEditingController();
   String _selectedArchetype = 'Bushy';
   bool _isLoading = false;
+  bool _showDeviceField = false;
 
   final List<Map<String, String>> _archetypes = [
     {'name': 'Bushy', 'emoji': '🪴', 'desc': 'Full and leafy'},
@@ -27,6 +29,7 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _deviceIdController.dispose();
     super.dispose();
   }
 
@@ -49,10 +52,13 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
 
+      final deviceId = _deviceIdController.text.trim();
+
       await api.addPlant(
         userId: auth.userId!,
         nickname: _nameController.text.trim(),
-        archetype: _selectedArchetype,
+        species: _selectedArchetype,
+        esp32DeviceId: deviceId.isNotEmpty ? deviceId : null,
       );
 
       if (mounted) {
@@ -63,12 +69,20 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
               children: [
                 const Icon(Icons.check_circle, color: Colors.white),
                 const SizedBox(width: 12),
-                Text('${_nameController.text} added!', style: GoogleFonts.quicksand()),
+                Expanded(
+                  child: Text(
+                    deviceId.isNotEmpty 
+                        ? '${_nameController.text} added with device!'
+                        : '${_nameController.text} added! Link a device later to enable watering.',
+                    style: GoogleFonts.quicksand(),
+                  ),
+                ),
               ],
             ),
             backgroundColor: AppTheme.leafGreen,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -130,7 +144,7 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
                       ),
                     ),
                     const Spacer(),
-                    const SizedBox(width: 48), // Balance the back button
+                    const SizedBox(width: 48),
                   ],
                 ),
                 const SizedBox(height: 40),
@@ -242,7 +256,71 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 48),
+                const SizedBox(height: 28),
+                // Device linking toggle
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: AppTheme.softSage),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.sensors,
+                            color: _showDeviceField ? AppTheme.leafGreen : AppTheme.soilBrown.withOpacity(0.5),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Link Device Now',
+                                  style: GoogleFonts.quicksand(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.soilBrown,
+                                  ),
+                                ),
+                                Text(
+                                  'Optional - can be done later',
+                                  style: GoogleFonts.quicksand(
+                                    fontSize: 12,
+                                    color: AppTheme.soilBrown.withOpacity(0.5),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: _showDeviceField,
+                            onChanged: (value) => setState(() => _showDeviceField = value),
+                            activeColor: AppTheme.leafGreen,
+                          ),
+                        ],
+                      ),
+                      if (_showDeviceField) ...[
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _deviceIdController,
+                          decoration: InputDecoration(
+                            hintText: 'Device ID (e.g., plant-001)',
+                            prefixIcon: Icon(Icons.qr_code, color: AppTheme.leafGreen.withOpacity(0.7)),
+                            filled: true,
+                            fillColor: AppTheme.softSage.withOpacity(0.2),
+                          ),
+                          textCapitalization: TextCapitalization.none,
+                          autocorrect: false,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 36),
                 // Add button
                 SizedBox(
                   height: 56,

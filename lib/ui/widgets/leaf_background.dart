@@ -15,7 +15,6 @@ class LeafBackground extends StatelessWidget {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // Background gradient
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -29,7 +28,6 @@ class LeafBackground extends StatelessWidget {
             ),
           ),
         ),
-        // Decorative leaves
         ...List.generate(leafCount, (index) {
           final random = math.Random(index);
           return Positioned(
@@ -48,7 +46,6 @@ class LeafBackground extends StatelessWidget {
             ),
           );
         }),
-        // Actual content
         child,
       ],
     );
