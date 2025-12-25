@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'core/theme.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'ui/auth/login_screen.dart';
-import 'ui/dashboard/dashboard_screen.dart';
+import 'ui/home/home_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // Set status bar style
@@ -16,6 +17,9 @@ void main() {
       statusBarIconBrightness: Brightness.dark,
     ),
   );
+
+  // Initialize notification service
+  await NotificationService().initialize();
   
   runApp(
     ChangeNotifierProvider(
@@ -27,7 +31,6 @@ void main() {
 
 class RootwiseApp extends StatelessWidget {
   const RootwiseApp({super.key});
-
 
   @override
   Widget build(BuildContext context) {
@@ -47,9 +50,8 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
     
-    // Show dashboard if authenticated, otherwise login
     if (auth.isAuthenticated) {
-      return const DashboardScreen();
+      return const HomeScreen();
     }
     return const LoginScreen();
   }

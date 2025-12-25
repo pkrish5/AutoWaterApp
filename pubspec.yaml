@@ -40,6 +40,21 @@ dependencies:
   image_picker: ^1.2.1
   google_fonts: ^6.3.3
 
+  
+  # Image Handling
+  
+  # Location Services
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  
+  # Push Notifications (for future Firebase integration)
+  # firebase_core: ^2.24.2
+  # firebase_messaging: ^14.7.10
+  # flutter_local_notifications: ^16.3.0
+  
+  # Utilities
+  intl: ^0.18.1
+  shared_preferences: ^2.2.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

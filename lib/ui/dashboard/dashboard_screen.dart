@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../models/plant.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/loading_indicator.dart';
+import '../widgets/streak_widget.dart';
 import '../plant_detail/plant_detail_screen.dart';
 import './plant_card.dart';
 import 'add_plant_screen.dart';
@@ -21,22 +22,37 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   late Future<List<Plant>> _plantsFuture;
   final GlobalKey<RefreshIndicatorState> _refreshKey = GlobalKey();
+  int _userStreak = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadPlants();
+    _loadData();
   }
 
-  void _loadPlants() {
+  void _loadData() {
     final auth = Provider.of<AuthService>(context, listen: false);
     final api = ApiService(auth.idToken!);
     _plantsFuture = api.getPlants(auth.userId!);
+    _loadStreak();
+  }
+
+  Future<void> _loadStreak() async {
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      final streakData = await api.getUserStreak(auth.userId!);
+      if (mounted) {
+        setState(() => _userStreak = streakData['streak'] ?? 0);
+      }
+    } catch (e) {
+      debugPrint('Failed to load streak: $e');
+    }
   }
 
   Future<void> _refreshPlants() async {
     setState(() {
-      _loadPlants();
+      _loadData();
     });
   }
 
@@ -51,64 +67,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _navigateToPlantDetail(Plant plant) async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => PlantDetailScreen(plant: plant)),
-    );
-    if (result == true) {
-      _refreshPlants();
-    }
-  }
-
-  void _showLogoutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Icon(Icons.logout, color: AppTheme.terracotta),
-            const SizedBox(width: 12),
-            Text(
-              'Leave Garden?',
-              style: GoogleFonts.comfortaa(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.soilBrown,
-              ),
-            ),
-          ],
-        ),
-        content: Text(
-          'Your plants will miss you!',
-          style: GoogleFonts.quicksand(color: AppTheme.soilBrown),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'Stay',
-              style: GoogleFonts.quicksand(
-                color: AppTheme.leafGreen,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Provider.of<AuthService>(context, listen: false).logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.terracotta,
-            ),
-            child: Text(
-              'Logout',
-              style: GoogleFonts.quicksand(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
+    final shouldRefresh = await Navigator.push<bool>(
+  context,
+      MaterialPageRoute(
+        builder: (_) => PlantDetailScreen(plant: plant),
       ),
     );
+
+    if (shouldRefresh == true) {
+     _refreshPlants();
+    }
   }
 
   @override
@@ -119,7 +87,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Custom app bar
+              // Custom app bar with streak
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Row(
@@ -161,26 +129,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     ),
-                    IconButton(
-                      onPressed: _showLogoutDialog,
-                      icon: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.logout_rounded,
-                          color: AppTheme.soilBrown.withOpacity(0.7),
-                          size: 22,
-                        ),
-                      ),
+                    // Streak widget at top right
+                    AnimatedStreakWidget(
+                      streak: _userStreak,
+                      showLabel: false,
                     ),
                   ],
                 ),

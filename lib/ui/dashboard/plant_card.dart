@@ -18,11 +18,38 @@ class PlantCard extends StatelessWidget {
   }
 
   String get _plantEmoji {
+    // Try to match from speciesInfo first
     switch (plant.species.toLowerCase()) {
+      case 'pothos':
       case 'vine':
+      case 'philodendron':
         return '🌿';
+      case 'snake plant':
+      case 'aloe vera':
+      case 'jade plant':
+      case 'zz plant':
+      case 'succulent':
       case 'spiky':
+      case 'cactus':
         return '🌵';
+      case 'monstera':
+      case 'calathea':
+      case 'tropical':
+      case 'dracaena':
+        return '🌴';
+      case 'peace lily':
+      case 'flowering':
+        return '🌸';
+      case 'fiddle leaf fig':
+      case 'rubber plant':
+      case 'tree':
+        return '🌳';
+      case 'boston fern':
+      case 'fern':
+        return '🌿';
+      case 'spider plant':
+      case 'hanging':
+        return '🌿';
       case 'bushy':
       default:
         return '🪴';
@@ -50,71 +77,7 @@ class PlantCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppTheme.softSage.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      plant.species,
-                      style: GoogleFonts.quicksand(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.leafGreen,
-                      ),
-                    ),
-                  ),
-                  if (!plant.hasDevice)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppTheme.terracotta.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.link_off, size: 12, color: AppTheme.terracotta),
-                          const SizedBox(width: 2),
-                          Text(
-                            'No device',
-                            style: GoogleFonts.quicksand(
-                              fontSize: 9,
-                              color: AppTheme.terracotta,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  else if (plant.streak > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.sunYellow.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Text('🔥', style: TextStyle(fontSize: 12)),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${plant.streak}',
-                            style: GoogleFonts.quicksand(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.orange[700],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                ],
-              ),
+              _buildTopRow(),
               const SizedBox(height: 12),
               Text(
                 plant.nickname,
@@ -129,58 +92,200 @@ class PlantCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Expanded(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    LiquidGauge(
-                      level: plant.waterLevel,
-                      size: 90,
-                      waterColor: _statusColor,
-                      waterColorLight: _statusColor.withOpacity(0.5),
-                    ),
-                    Text(_plantEmoji, style: const TextStyle(fontSize: 36)),
-                  ],
-                ),
+                child: _buildCenterContent(),
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.water_drop,
-                      size: 14,
-                      color: _statusColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      '${plant.waterPercentage.toInt()}%',
-                      style: GoogleFonts.quicksand(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: _statusColor,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      plant.waterStatus,
-                      style: GoogleFonts.quicksand(
-                        fontSize: 11,
-                        color: _statusColor.withOpacity(0.8),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _buildBottomStatus(),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildTopRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(
+            color: AppTheme.softSage.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            plant.species,
+            style: GoogleFonts.quicksand(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.leafGreen,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (!plant.hasDevice)
+          _buildNoDeviceTag()
+        else if (plant.streak > 0)
+          _buildStreakTag(),
+      ],
+    );
+  }
+
+  Widget _buildNoDeviceTag() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppTheme.terracotta.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.link_off, size: 12, color: AppTheme.terracotta),
+          const SizedBox(width: 2),
+          Text(
+            'Manual',
+            style: GoogleFonts.quicksand(
+              fontSize: 9,
+              color: AppTheme.terracotta,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStreakTag() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.sunYellow.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('🔥', style: TextStyle(fontSize: 12)),
+          const SizedBox(width: 4),
+          Text(
+            '${plant.streak}',
+            style: GoogleFonts.quicksand(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Colors.orange[700],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCenterContent() {
+    if (plant.hasDevice) {
+      // Show water gauge for plants with devices
+      return Stack(
+        alignment: Alignment.center,
+        children: [
+          LiquidGauge(
+            level: plant.waterLevel,
+            size: 90,
+            waterColor: _statusColor,
+            waterColorLight: _statusColor.withOpacity(0.5),
+          ),
+          Text(_plantEmoji, style: const TextStyle(fontSize: 36)),
+        ],
+      );
+    } else {
+      // Show watering recommendation for plants without devices
+      return _buildManualWateringIndicator();
+    }
+  }
+
+  Widget _buildManualWateringIndicator() {
+    final recommendation = plant.wateringRecommendation;
+    
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Text(_plantEmoji, style: const TextStyle(fontSize: 48)),
+        Positioned(
+          bottom: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.waterBlue.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.water_drop, size: 12, color: AppTheme.waterBlue),
+                const SizedBox(width: 3),
+                Text(
+                  '${recommendation.frequencyDays}d',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.waterBlue,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomStatus() {
+    if (plant.hasDevice) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: _statusColor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.water_drop, size: 14, color: _statusColor),
+            const SizedBox(width: 4),
+            Text(
+              '${plant.waterPercentage.toInt()}%',
+              style: GoogleFonts.quicksand(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _statusColor,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              plant.waterStatus,
+              style: GoogleFonts.quicksand(
+                fontSize: 11,
+                color: _statusColor.withOpacity(0.8),
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Show approximate moisture status for manual plants
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppTheme.softSage.withOpacity(0.3),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          'Tap for care info',
+          style: GoogleFonts.quicksand(
+            fontSize: 11,
+            color: AppTheme.soilBrown.withOpacity(0.7),
+          ),
+        ),
+      );
+    }
   }
 }

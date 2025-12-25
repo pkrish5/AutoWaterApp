@@ -1,6 +1,6 @@
 class Plant {
   final String plantId;
-  final String odIn;
+  final String userId;
   final String nickname;
   final String species;
   final String? esp32DeviceId;
@@ -9,10 +9,11 @@ class Plant {
   final PlantHealth? currentHealth;
   final PlantEnvironment? environment;
   final int? addedAt;
+  final PlantSpeciesInfo? speciesInfo;
 
   Plant({
     required this.plantId,
-    required this.odIn,
+    required this.userId,
     required this.nickname,
     required this.species,
     this.esp32DeviceId,
@@ -21,29 +22,38 @@ class Plant {
     this.currentHealth,
     this.environment,
     this.addedAt,
+    this.speciesInfo,
   });
+  static int? _parseEpoch(dynamic v) {
+  if (v == null) return null;
+  final n = (v as num).toInt();
+  // if it's seconds, convert to ms
+  return n < 10_000_000_000 ? n * 1000 : n;
+}
 
   factory Plant.fromJson(Map<String, dynamic> json) {
     return Plant(
       plantId: json['plantId'] ?? '',
-      odIn: json['userId'] ?? '',
+      userId: json['userId'] ?? '',
       nickname: json['nickname'] ?? 'Unnamed Plant',
       species: json['species'] ?? json['archetype'] ?? 'Unknown',
       esp32DeviceId: json['esp32DeviceId'],
       waterPercentage: _parseWaterPercentage(json),
-      streak: json['streak'] ?? 0,
+      streak: (json['streak'] as num?)?.toInt() ?? 0,
       currentHealth: json['currentHealth'] != null 
           ? PlantHealth.fromJson(json['currentHealth']) 
           : null,
       environment: json['environment'] != null
           ? PlantEnvironment.fromJson(json['environment'])
           : null,
-      addedAt: json['addedAt'],
+      addedAt: _parseEpoch(json['addedAt']),
+      speciesInfo: json['speciesInfo'] != null
+          ? PlantSpeciesInfo.fromJson(json['speciesInfo'])
+          : null,
     );
   }
 
   static double _parseWaterPercentage(Map<String, dynamic> json) {
-    // Try multiple sources for water percentage
     if (json['waterPercentage'] != null) {
       return (json['waterPercentage'] as num).toDouble();
     }
@@ -53,10 +63,8 @@ class Plant {
     return 0.0;
   }
 
-  // Helper to get normalized level (0.0 - 1.0) for gauge
   double get waterLevel => (waterPercentage / 100).clamp(0.0, 1.0);
 
-  // Get status text based on water level
   String get waterStatus {
     if (waterPercentage >= 70) return 'Thriving';
     if (waterPercentage >= 40) return 'Happy';
@@ -64,11 +72,40 @@ class Plant {
     return 'Critical';
   }
 
-  // Check if device is linked
   bool get hasDevice => esp32DeviceId != null && esp32DeviceId!.isNotEmpty;
 
-  // Get archetype for backwards compatibility
   String get archetype => species;
+  
+  // Get watering recommendation for plants without devices
+  WateringRecommendation get wateringRecommendation {
+    if (speciesInfo != null) {
+      return WateringRecommendation.fromSpeciesInfo(speciesInfo!);
+    }
+    // Default recommendation based on archetype
+    switch (species.toLowerCase()) {
+      case 'cactus':
+      case 'succulent':
+      case 'spiky':
+        return WateringRecommendation(
+          frequencyDays: 14,
+          amountML: 50,
+          description: 'Water sparingly every 2 weeks',
+        );
+      case 'fern':
+      case 'tropical':
+        return WateringRecommendation(
+          frequencyDays: 3,
+          amountML: 150,
+          description: 'Keep soil consistently moist',
+        );
+      default:
+        return WateringRecommendation(
+          frequencyDays: 7,
+          amountML: 100,
+          description: 'Water weekly when soil is dry',
+        );
+    }
+  }
 }
 
 class PlantHealth {
@@ -95,8 +132,23 @@ class PlantHealth {
       temperature: (json['temperature'] as num?)?.toDouble(),
       humidity: (json['humidity'] as num?)?.toDouble(),
       ph: (json['ph'] as num?)?.toDouble(),
-      lastUpdate: json['lastUpdate'],
+      lastUpdate: json['lastUpdate'] ?? json['timestamp'],
     );
+  }
+  
+  String get lastUpdateFormatted {
+    if (lastUpdate == null) return 'Never';
+    try {
+      final date = DateTime.fromMillisecondsSinceEpoch(lastUpdate!);
+      final now = DateTime.now();
+      final diff = now.difference(date);
+      if (diff.inDays > 0) return '${diff.inDays}d ago';
+      if (diff.inHours > 0) return '${diff.inHours}h ago';
+      if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
+      return 'Just now';
+    } catch (e) {
+      return 'Unknown';
+    }
   }
 }
 
@@ -157,6 +209,67 @@ class PlantPosition {
       x: (json['x'] as num?)?.toDouble() ?? 0,
       y: (json['y'] as num?)?.toDouble() ?? 0,
       rotation: (json['rotation'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+class PlantSpeciesInfo {
+  final String commonName;
+  final String scientificName;
+  final String? description;
+  final String? careLevel;
+  final int? waterFrequencyDays;
+  final int? waterAmountML;
+  final String? lightRequirement;
+  final String? temperatureRange;
+  final String? humidityPreference;
+  final List<String>? tips;
+
+  PlantSpeciesInfo({
+    required this.commonName,
+    required this.scientificName,
+    this.description,
+    this.careLevel,
+    this.waterFrequencyDays,
+    this.waterAmountML,
+    this.lightRequirement,
+    this.temperatureRange,
+    this.humidityPreference,
+    this.tips,
+  });
+
+  factory PlantSpeciesInfo.fromJson(Map<String, dynamic> json) {
+    return PlantSpeciesInfo(
+      commonName: json['commonName'] ?? '',
+      scientificName: json['scientificName'] ?? '',
+      description: json['description'],
+      careLevel: json['careLevel'],
+      waterFrequencyDays: json['waterFrequencyDays'],
+      waterAmountML: json['waterAmountML'],
+      lightRequirement: json['lightRequirement'],
+      temperatureRange: json['temperatureRange'],
+      humidityPreference: json['humidityPreference'],
+      tips: json['tips'] != null ? List<String>.from(json['tips']) : null,
+    );
+  }
+}
+
+class WateringRecommendation {
+  final int frequencyDays;
+  final int amountML;
+  final String description;
+
+  WateringRecommendation({
+    required this.frequencyDays,
+    required this.amountML,
+    required this.description,
+  });
+
+  factory WateringRecommendation.fromSpeciesInfo(PlantSpeciesInfo info) {
+    return WateringRecommendation(
+      frequencyDays: info.waterFrequencyDays ?? 7,
+      amountML: info.waterAmountML ?? 100,
+      description: 'Based on ${info.commonName} care requirements',
     );
   }
 }

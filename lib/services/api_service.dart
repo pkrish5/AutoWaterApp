@@ -4,6 +4,10 @@ import '../core/constants.dart';
 import '../models/plant.dart';
 import '../models/watering_schedule.dart';
 import '../models/water_level.dart';
+import '../models/user.dart';
+import '../models/plant_image.dart';
+import '../models/sensor_data.dart';
+import '../models/paginated_images.dart';
 
 class ApiService {
   final String authToken;
@@ -11,13 +15,12 @@ class ApiService {
   ApiService(this.authToken);
 
   Map<String, String> get _headers => {
-    'Authorization': authToken,
+    'Authorization': 'Bearer $authToken',
     'Content-Type': 'application/json',
   };
 
   // ==================== PLANT MANAGEMENT ====================
 
-  /// Get all plants for a user
   Future<List<Plant>> getPlants(String userId) async {
     try {
       final response = await http.get(
@@ -36,21 +39,24 @@ class ApiService {
     }
   }
 
-  /// Add a new plant
   Future<Plant?> addPlant({
     required String userId,
     required String nickname,
     required String species,
+    String? speciesId,
     String? esp32DeviceId,
     Map<String, dynamic>? environment,
+    Map<String, dynamic>? speciesInfo,
   }) async {
     try {
       final body = {
         'nickname': nickname,
         'species': species,
+        if (speciesId != null) 'speciesId': speciesId,
         if (esp32DeviceId != null && esp32DeviceId.isNotEmpty) 
           'esp32DeviceId': esp32DeviceId,
         if (environment != null) 'environment': environment,
+        if (speciesInfo != null) 'speciesInfo': speciesInfo,
       };
 
       final response = await http.post(
@@ -63,14 +69,14 @@ class ApiService {
         final data = jsonDecode(response.body);
         return Plant.fromJson(data);
       } else {
-        throw Exception("Failed to add plant: ${response.statusCode} - ${response.body}");
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? "Failed to add plant: ${response.statusCode}");
       }
     } catch (e) {
-      throw Exception("Failed to add plant: $e");
+      throw Exception("$e");
     }
   }
 
-  /// Get plant details with sensor history
   Future<Map<String, dynamic>> getPlantDetails(String plantId, String userId) async {
     try {
       final response = await http.get(
@@ -88,7 +94,6 @@ class ApiService {
     }
   }
 
-  /// Delete a plant
   Future<bool> deletePlant(String plantId, String userId) async {
     try {
       final response = await http.delete(
@@ -102,7 +107,6 @@ class ApiService {
     }
   }
 
-  /// Update plant position in room layout
   Future<bool> updatePlantPosition({
     required String plantId,
     required String userId,
@@ -134,34 +138,107 @@ class ApiService {
     }
   }
 
-  /// Link an ESP32 device to a plant
-  Future<bool> linkDevice({
+  // ==================== DEVICE LINKING ====================
+
+Future<void> linkDevice({
+  required String plantId,
+  required String userId,
+  required String esp32DeviceId,
+}) async {
+  final response = await http.put(
+    Uri.parse('${AppConstants.baseUrl}/plants/$plantId/device'),
+    headers: _headers,
+    body: jsonEncode({
+      'userId': userId,
+      'esp32DeviceId': esp32DeviceId,
+    }),
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception(jsonDecode(response.body)['error'] ?? 'Failed to link device');
+  }
+}
+
+  Future<bool> unlinkDevice({
     required String plantId,
     required String userId,
-    required String esp32DeviceId,
   }) async {
-    // This would require a new API endpoint or updating the plant
-    // For now, we'll update via the position endpoint with device info
-    // You may need to add a dedicated endpoint for this
     try {
-      final response = await http.put(
-        Uri.parse('${AppConstants.baseUrl}/plants/$plantId/device'),
+      final response = await http.delete(
+        Uri.parse('${AppConstants.baseUrl}/plants/$plantId/device?userId=$userId'),
         headers: _headers,
-        body: jsonEncode({
-          'userId': userId,
-          'esp32DeviceId': esp32DeviceId,
-        }),
       );
 
-      return response.statusCode == 200;
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? "Failed to unlink device");
+      }
     } catch (e) {
-      throw Exception("Failed to link device: $e");
+      throw Exception("$e");
     }
   }
 
+  // ==================== SENSOR DATA ====================
+
+  Future<SensorData?> getLatestSensorData(
+    String plantId,
+    String userId,
+  ) async {
+    final response = await http.get(
+      Uri.parse(
+        '${AppConstants.baseUrl}/plants/$plantId/sensor/latest?userId=$userId'
+      ),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return SensorData.fromJson(jsonDecode(response.body));
+    } else if (response.statusCode == 404) {
+      return null;
+    } else {
+      throw Exception("Failed to get sensor data: ${response.statusCode}");
+    }
+  }
+
+  Future<SensorHistory> getSensorHistory(String plantId, {int? hours}) async {
+    try {
+      final uri = Uri.parse('${AppConstants.baseUrl}/plants/$plantId/sensor/history')
+          .replace(queryParameters: hours != null ? {'hours': hours.toString()} : null);
+      
+      final response = await http.get(uri, headers: _headers);
+
+      if (response.statusCode == 200) {
+        return SensorHistory.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception("Failed to get sensor history: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+// Get plant
+Future<Plant> getPlant(String plantId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return Plant.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to get plant: ${response.statusCode}');
+    }
+  } catch (e) {
+    throw Exception('Connection error: $e');
+  }
+}
+
+
   // ==================== WATER LEVEL ====================
 
-  /// Get water container level
   Future<WaterLevel> getWaterLevel(String plantId) async {
     try {
       final response = await http.get(
@@ -179,7 +256,6 @@ class ApiService {
     }
   }
 
-  /// Mark water container as refilled
   Future<WaterLevel> refillWater(String plantId, {bool markFull = true, int? refillAmount}) async {
     try {
       final body = {
@@ -205,7 +281,6 @@ class ApiService {
 
   // ==================== WATERING SCHEDULE ====================
 
-  /// Get watering schedule
   Future<WateringSchedule> getWateringSchedule(String plantId) async {
     try {
       final response = await http.get(
@@ -223,7 +298,6 @@ class ApiService {
     }
   }
 
-  /// Update watering schedule
   Future<WateringSchedule> updateWateringSchedule({
     required String plantId,
     required String userId,
@@ -266,7 +340,6 @@ class ApiService {
 
   // ==================== MANUAL WATERING ====================
 
-  /// Trigger manual watering
   Future<Map<String, dynamic>> triggerWatering(String plantId, {int? amountML, int? duration}) async {
     try {
       final body = {
@@ -291,9 +364,70 @@ class ApiService {
     }
   }
 
-  // ==================== USER & STREAK ====================
+  // ==================== USER MANAGEMENT ====================
 
-  /// Get user streak info
+  Future<User> getUserProfile(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/profile'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        return User.fromJson(jsonDecode(response.body));
+      } else {
+        throw Exception("Failed to get profile: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  Future<User> updateUserProfile({
+    required String userId,
+    String? name,
+    bool? isPublicProfile,
+  }) async {
+    try {
+      final body = {
+        if (name != null) 'name': name,
+        if (isPublicProfile != null) 'isPublicProfile': isPublicProfile,
+      };
+
+      final response = await http.put(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/profile'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        return User.fromJson(jsonDecode(response.body));
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? "Failed to update profile");
+      }
+    } catch (e) {
+      throw Exception("$e");
+    }
+  }
+
+  Future<bool> updateUserLocation({
+    required String userId,
+    required UserLocation location,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/location'),
+        headers: _headers,
+        body: jsonEncode({'location': location.toJson()}),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception("Failed to update location: $e");
+    }
+  }
+
   Future<Map<String, dynamic>> getUserStreak(String userId) async {
     try {
       final response = await http.get(
@@ -311,7 +445,6 @@ class ApiService {
     }
   }
 
-  /// Update user settings
   Future<bool> updateUserSettings(String userId, Map<String, dynamic> settings) async {
     try {
       final response = await http.put(
@@ -326,20 +459,42 @@ class ApiService {
     }
   }
 
-  // ==================== IMAGE UPLOAD ====================
+  Future<bool> registerPushToken({
+    required String userId,
+    required String token,
+    required String platform,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/push-token'),
+        headers: _headers,
+        body: jsonEncode({
+          'token': token,
+          'platform': platform,
+        }),
+      );
 
-  /// Upload plant health check image
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception("Failed to register push token: $e");
+    }
+  }
+
+  // ==================== IMAGE MANAGEMENT ====================
+
   Future<Map<String, dynamic>> uploadPlantImage({
     required String plantId,
     required String userId,
     required String base64Image,
     String imageType = 'health-check',
+    String? notes,
   }) async {
     try {
       final body = {
         'imageData': base64Image,
         'userId': userId,
         'imageType': imageType,
+        if (notes != null) 'notes': notes,
       };
 
       final response = await http.post(
@@ -352,6 +507,237 @@ class ApiService {
         return jsonDecode(response.body);
       } else {
         throw Exception("Failed to upload image: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+  Future<PaginatedImages> getPlantImages(
+  String plantId, {
+  String? lastKey,
+  int limit = 30,
+}) async {
+  final uri = Uri.parse(
+    '${AppConstants.baseUrl}/plants/$plantId/images',
+  ).replace(queryParameters: {
+    'limit': limit.toString(),
+    if (lastKey != null) 'lastKey': lastKey,
+  });
+
+  final response = await http.get(uri, headers: _headers);
+
+  if (response.statusCode != 200) {
+    throw Exception('Failed to load images');
+  }
+
+  final decoded = jsonDecode(response.body);
+
+  return PaginatedImages(
+    items: (decoded['items'] as List)
+        .map((e) => PlantImage.fromJson(e))
+        .toList(),
+    nextKey: decoded['nextKey'],
+  );
+}
+
+
+
+  Future<bool> deletePlantImage(String plantId, String imageId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${AppConstants.baseUrl}/plants/$plantId/images/$imageId'),
+        headers: _headers,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception("Failed to delete image: $e");
+    }
+  }
+
+  // ==================== FRIENDS & SOCIAL ====================
+
+  Future<List<Friend>> getFriends(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/friends'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        return data.map((json) => Friend.fromJson(json)).toList();
+      } else {
+        throw Exception("Failed to get friends: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  Future<List<FriendRequest>> getFriendRequests(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/friend-requests'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        return data.map((json) => FriendRequest.fromJson(json)).toList();
+      } else {
+        throw Exception("Failed to get friend requests: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  Future<bool> sendFriendRequest({
+    required String userId,
+    required String friendEmail,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/friend-requests'),
+        headers: _headers,
+        body: jsonEncode({'friendEmail': friendEmail}),
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception(error['error'] ?? "Failed to send request");
+      }
+    } catch (e) {
+      throw Exception("$e");
+    }
+  }
+
+  Future<bool> respondToFriendRequest({
+    required String userId,
+    required String requestId,
+    required bool accept,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/friend-requests/$requestId'),
+        headers: _headers,
+        body: jsonEncode({'accept': accept}),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception("Failed to respond to request: $e");
+    }
+  }
+
+  Future<bool> removeFriend({
+    required String userId,
+    required String friendId,
+  }) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/friends/$friendId'),
+        headers: _headers,
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      throw Exception("Failed to remove friend: $e");
+    }
+  }
+
+  Future<List<LeaderboardEntry>> getLeaderboard(String userId, {String scope = 'friends'}) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/leaderboard?userId=$userId&scope=$scope'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        return data.map((json) => LeaderboardEntry.fromJson(json, currentUserId: userId)).toList();
+      } else {
+        throw Exception("Failed to get leaderboard: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  // Get friend's plants (if they have shared access)
+  Future<List<Plant>> getFriendPlants(String userId, String friendId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/users/$userId/friends/$friendId/plants'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final List data = jsonDecode(response.body);
+        return data.map((json) => Plant.fromJson(json)).toList();
+      } else if (response.statusCode == 403) {
+        throw Exception("This user's garden is private");
+      } else {
+        throw Exception("Failed to get friend's plants: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("$e");
+    }
+  }
+Future<PaginatedImages> getPlantImagesPaginated(
+  String plantId, {
+  String? lastKey,
+  int limit = 30,
+}) async {
+  final queryParams = <String, String>{
+    'limit': limit.toString(),
+  };
+
+  if (lastKey != null) {
+    queryParams['lastKey'] = lastKey;
+  }
+
+  final uri = Uri.parse(
+    '${AppConstants.baseUrl}/plants/$plantId/images',
+  ).replace(queryParameters: queryParams);
+
+  final response = await http.get(
+    uri,
+    headers: _headers,
+  );
+
+  if (response.statusCode != 200) {
+    throw Exception('Failed to load plant images');
+  }
+
+  final decoded = jsonDecode(response.body);
+
+  final items = (decoded['items'] as List)
+      .map((e) => PlantImage.fromJson(e))
+      .toList();
+
+  return PaginatedImages(
+    items: items,
+    nextKey: decoded['nextKey'],
+  );
+}
+
+  // ==================== SPECIES INFO ====================
+
+  Future<List<Map<String, dynamic>>> searchPlantSpecies(String query) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/species/search?q=$query'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+      } else {
+        throw Exception("Failed to search species: ${response.statusCode}");
       }
     } catch (e) {
       throw Exception("Connection error: $e");
