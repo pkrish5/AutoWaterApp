@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'core/theme.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
@@ -9,6 +10,9 @@ import 'ui/home/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await Firebase.initializeApp();
   
   // Set status bar style
   SystemChrome.setSystemUIOverlayStyle(
@@ -43,14 +47,39 @@ class RootwiseApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
+
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  @override
+  void initState() {
+    super.initState();
+    _registerPushToken();
+  }
+
+  Future<void> _registerPushToken() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    
+    // Wait for auth to be ready
+    if (auth.isAuthenticated && auth.userId != null && auth.idToken != null) {
+      await NotificationService().registerTokenWithServer(
+        userId: auth.userId!,
+        authToken: auth.idToken!,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
     
+    // Register token when user logs in
     if (auth.isAuthenticated) {
+      _registerPushToken();
       return const HomeScreen();
     }
     return const LoginScreen();

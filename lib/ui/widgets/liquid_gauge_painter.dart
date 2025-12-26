@@ -29,8 +29,8 @@ class LiquidGaugePainter extends CustomPainter {
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
         colors: [
-          Colors.white.withOpacity(0.3),
-          Colors.blue.withOpacity(0.05),
+          Colors.white.withValues(alpha:0.3),
+          Colors.blue.withValues(alpha:0.05),
         ],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
@@ -58,7 +58,7 @@ class LiquidGaugePainter extends CustomPainter {
     backWavePath.lineTo(0, size.height);
     backWavePath.close();
 
-    final backWavePaint = Paint()..color = waterColorLight.withOpacity(0.5);
+    final backWavePaint = Paint()..color = waterColorLight.withValues(alpha:0.5);
     canvas.drawPath(backWavePath, backWavePaint);
 
     final wavePath = Path();
@@ -76,7 +76,7 @@ class LiquidGaugePainter extends CustomPainter {
     canvas.drawPath(wavePath, waterPaint);
 
     final shinePaint = Paint()
-      ..color = Colors.white.withOpacity(0.3)
+      ..color = Colors.white.withValues(alpha:0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
     
@@ -91,7 +91,7 @@ class LiquidGaugePainter extends CustomPainter {
     canvas.restore();
 
     final borderPaint = Paint()
-      ..color = waterColor.withOpacity(0.3)
+      ..color = waterColor.withValues(alpha:0.3)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
     canvas.drawCircle(center, radius - 1.5, borderPaint);

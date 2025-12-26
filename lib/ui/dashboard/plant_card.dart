@@ -66,7 +66,7 @@ class PlantCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.leafGreen.withOpacity(0.08),
+              color: AppTheme.leafGreen.withValues(alpha:0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -110,7 +110,7 @@ class PlantCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
           decoration: BoxDecoration(
-            color: AppTheme.softSage.withOpacity(0.5),
+            color: AppTheme.softSage.withValues(alpha:0.5),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Text(
@@ -136,7 +136,7 @@ class PlantCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: AppTheme.terracotta.withOpacity(0.1),
+        color: AppTheme.terracotta.withValues(alpha:0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -160,7 +160,7 @@ class PlantCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.sunYellow.withOpacity(0.2),
+        color: AppTheme.sunYellow.withValues(alpha:0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -191,7 +191,7 @@ class PlantCard extends StatelessWidget {
             level: plant.waterLevel,
             size: 90,
             waterColor: _statusColor,
-            waterColorLight: _statusColor.withOpacity(0.5),
+            waterColorLight: _statusColor.withValues(alpha:0.5),
           ),
           Text(_plantEmoji, style: const TextStyle(fontSize: 36)),
         ],
@@ -214,7 +214,7 @@ class PlantCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppTheme.waterBlue.withOpacity(0.15),
+              color: AppTheme.waterBlue.withValues(alpha:0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -243,7 +243,7 @@ class PlantCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: _statusColor.withOpacity(0.1),
+          color: _statusColor.withValues(alpha:0.1),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -264,7 +264,7 @@ class PlantCard extends StatelessWidget {
               plant.waterStatus,
               style: GoogleFonts.quicksand(
                 fontSize: 11,
-                color: _statusColor.withOpacity(0.8),
+                color: _statusColor.withValues(alpha:0.8),
               ),
             ),
           ],
@@ -275,14 +275,14 @@ class PlantCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AppTheme.softSage.withOpacity(0.3),
+          color: AppTheme.softSage.withValues(alpha:0.3),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           'Tap for care info',
           style: GoogleFonts.quicksand(
             fontSize: 11,
-            color: AppTheme.soilBrown.withOpacity(0.7),
+            color: AppTheme.soilBrown.withValues(alpha:0.7),
           ),
         ),
       );

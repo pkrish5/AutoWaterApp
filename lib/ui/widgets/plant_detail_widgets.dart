@@ -12,9 +12,10 @@ class PlantDetailHeader extends StatelessWidget {
   final VoidCallback onInfo;
   final VoidCallback onGallery;
   final VoidCallback? onUnlink;
+  final VoidCallback? onEdit;  // ADD THIS
 
   const PlantDetailHeader({super.key, required this.plant, required this.onBack, 
-    required this.onInfo, required this.onGallery, this.onUnlink});
+    required this.onInfo, required this.onGallery, this.onUnlink, this.onEdit});  // ADD onEdit
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +31,17 @@ class PlantDetailHeader extends StatelessWidget {
           child: const Icon(Icons.more_vert, color: AppTheme.soilBrown)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         itemBuilder: (_) => [
+          if (onEdit != null) PopupMenuItem(value: 'edit', child: Row(children: [const Icon(Icons.edit, color: AppTheme.leafGreen), const SizedBox(width: 12), Text('Edit Plant', style: GoogleFonts.quicksand())])),
           PopupMenuItem(value: 'info', child: Row(children: [const Icon(Icons.info_outline, color: AppTheme.leafGreen), const SizedBox(width: 12), Text('Plant Info', style: GoogleFonts.quicksand())])),
           PopupMenuItem(value: 'gallery', child: Row(children: [const Icon(Icons.photo_library, color: AppTheme.waterBlue), const SizedBox(width: 12), Text('Photo Gallery', style: GoogleFonts.quicksand())])),
           if (onUnlink != null) PopupMenuItem(value: 'unlink', child: Row(children: [const Icon(Icons.link_off, color: AppTheme.terracotta), const SizedBox(width: 12), Text('Unlink Device', style: GoogleFonts.quicksand())])),
         ],
-        onSelected: (v) { if (v == 'info') onInfo(); else if (v == 'gallery') onGallery(); else if (v == 'unlink') onUnlink?.call(); },
+        onSelected: (v) { 
+          if (v == 'edit') onEdit?.call(); 
+          else if (v == 'info') onInfo(); 
+          else if (v == 'gallery') onGallery(); 
+          else if (v == 'unlink') onUnlink?.call(); 
+        },
       ),
     ]));
   }
@@ -42,7 +49,8 @@ class PlantDetailHeader extends StatelessWidget {
 
 class PlantInfoCard extends StatelessWidget {
   final Plant plant;
-  const PlantInfoCard({super.key, required this.plant});
+  final VoidCallback? onEdit; 
+  const PlantInfoCard({super.key, required this.plant, this.onEdit}); 
 
   String get _emoji {
     switch (plant.species.toLowerCase()) {
@@ -55,21 +63,31 @@ class PlantInfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24),
-        boxShadow: [BoxShadow(color: AppTheme.leafGreen.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 8))]),
-      child: Column(children: [
-        Text(_emoji, style: const TextStyle(fontSize: 64)),
-        const SizedBox(height: 12),
-        Text(plant.species, style: GoogleFonts.quicksand(fontSize: 16, color: AppTheme.soilBrown.withOpacity(0.7))),
-        const SizedBox(height: 8),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(plant.hasDevice ? Icons.bluetooth_connected : Icons.bluetooth_disabled, size: 16, color: plant.hasDevice ? AppTheme.leafGreen : AppTheme.terracotta),
-          const SizedBox(width: 6),
-          Text(plant.hasDevice ? 'Device: ${plant.esp32DeviceId}' : 'No device linked',
-            style: GoogleFonts.quicksand(fontSize: 12, color: plant.hasDevice ? AppTheme.leafGreen : AppTheme.terracotta)),
+    return GestureDetector(
+      onTap: onEdit,  // ADD THIS - tap card to edit
+      child: Container(padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24),
+          boxShadow: [BoxShadow(color: AppTheme.leafGreen.withValues(alpha:0.1), blurRadius: 20, offset: const Offset(0, 8))]),
+        child: Column(children: [
+          Text(_emoji, style: const TextStyle(fontSize: 64)),
+          const SizedBox(height: 12),
+          // ADD edit icon hint next to species
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Text(plant.species, style: GoogleFonts.quicksand(fontSize: 16, color: AppTheme.soilBrown.withValues(alpha:0.7))),
+            if (onEdit != null) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.edit, size: 14, color: AppTheme.soilBrown.withValues(alpha:0.4)),
+            ],
+          ]),
+          const SizedBox(height: 8),
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            Icon(plant.hasDevice ? Icons.bluetooth_connected : Icons.bluetooth_disabled, size: 16, color: plant.hasDevice ? AppTheme.leafGreen : AppTheme.terracotta),
+            const SizedBox(width: 6),
+            Text(plant.hasDevice ? 'Device: ${plant.esp32DeviceId}' : 'No device linked',
+              style: GoogleFonts.quicksand(fontSize: 12, color: plant.hasDevice ? AppTheme.leafGreen : AppTheme.terracotta)),
+          ]),
         ]),
-      ]),
+      ),
     );
   }
 }
@@ -110,7 +128,7 @@ class _QuickActionCard extends StatelessWidget {
     return GestureDetector(onTap: isLoading ? null : onTap,
       child: Container(padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: color.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))]),
+          boxShadow: [BoxShadow(color: color.withValues(alpha:0.3), blurRadius: 10, offset: const Offset(0, 4))]),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           if (isLoading) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
           else Icon(icon, color: Colors.white),
@@ -135,7 +153,7 @@ class SensorDataCard extends StatelessWidget {
           const Icon(Icons.sensors, color: AppTheme.leafGreen), const SizedBox(width: 8),
           Text('Latest Sensor Data', style: GoogleFonts.comfortaa(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
           const Spacer(),
-          if (sensorData != null) Text(sensorData!.lastUpdateFormatted, style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.5))),
+          if (sensorData != null) Text(sensorData!.lastUpdateFormatted, style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.5))),
         ]),
         const SizedBox(height: 16),
         if (sensorData != null) ...[
@@ -152,7 +170,7 @@ class SensorDataCard extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(child: _SensorTile(icon: Icons.science, label: 'pH', value: sensorData!.ph != null ? sensorData!.ph!.toStringAsFixed(1) : '--', color: Colors.purple)),
           ]),
-        ] else Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('No sensor data yet', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withOpacity(0.5))))),
+        ] else Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('No sensor data yet', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.5))))),
       ]),
     );
   }
@@ -175,12 +193,12 @@ class _MoistureIndicator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: _color.withOpacity(0.1), borderRadius: BorderRadius.circular(16),
+      decoration: BoxDecoration(color: _color.withValues(alpha:0.1), borderRadius: BorderRadius.circular(16),
         border: status == MoistureStatus.critical ? Border.all(color: _color, width: 2) : null),
       child: Row(children: [
         Icon(Icons.water_drop, color: _color, size: 32), const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Soil Moisture', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.6))),
+          Text('Soil Moisture', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6))),
           Row(children: [
             Text('${moisture.toInt()}%', style: GoogleFonts.comfortaa(fontSize: 24, fontWeight: FontWeight.bold, color: _color)),
             const SizedBox(width: 8),
@@ -203,11 +221,11 @@ class _SensorTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+    return Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withValues(alpha:0.1), borderRadius: BorderRadius.circular(12)),
       child: Column(children: [
         Icon(icon, color: color, size: 24), const SizedBox(height: 4),
         Text(value, style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-        Text(label, style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withOpacity(0.6))),
+        Text(label, style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withValues(alpha:0.6))),
       ]),
     );
   }
@@ -235,15 +253,15 @@ class WaterLevelCard extends StatelessWidget {
         ]),
         const SizedBox(height: 16),
         Stack(children: [
-          Container(height: 32, decoration: BoxDecoration(color: AppTheme.waterBlue.withOpacity(0.15), borderRadius: BorderRadius.circular(16))),
+          Container(height: 32, decoration: BoxDecoration(color: AppTheme.waterBlue.withValues(alpha:0.15), borderRadius: BorderRadius.circular(16))),
           FractionallySizedBox(widthFactor: (pct / 100).clamp(0.0, 1.0),
-            child: Container(height: 32, decoration: BoxDecoration(gradient: LinearGradient(colors: critical ? [AppTheme.terracotta.withOpacity(0.8), AppTheme.terracotta] : [AppTheme.waterBlue, AppTheme.waterBlueDark]), borderRadius: BorderRadius.circular(16)))),
+            child: Container(height: 32, decoration: BoxDecoration(gradient: LinearGradient(colors: critical ? [AppTheme.terracotta.withValues(alpha:0.8), AppTheme.terracotta] : [AppTheme.waterBlue, AppTheme.waterBlueDark]), borderRadius: BorderRadius.circular(16)))),
           Positioned.fill(child: Center(child: Text('${pct.toInt()}%', style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: pct > 40 ? Colors.white : AppTheme.soilBrown)))),
         ]),
         const SizedBox(height: 12),
         Row(children: [Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('${waterLevel!.currentWaterLevel}mL / ${waterLevel!.containerSize}mL', style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
-          Text('Last refilled: ${waterLevel!.lastRefilledFormatted}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.6)))])),
+          Text('Last refilled: ${waterLevel!.lastRefilledFormatted}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6)))])),
           ElevatedButton.icon(onPressed: isRefilling ? null : onRefill,
             icon: isRefilling ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white))) : const Icon(Icons.local_drink, size: 18),
             label: Text('Refill', style: GoogleFonts.quicksand(fontWeight: FontWeight.w600)), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.waterBlue)),
@@ -262,13 +280,13 @@ class ScheduleCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(onTap: onTap, child: Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
       child: Row(children: [
-        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppTheme.leafGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+        Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppTheme.leafGreen.withValues(alpha:0.1), borderRadius: BorderRadius.circular(12)),
           child: const Icon(Icons.schedule, color: AppTheme.leafGreen)),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text('Watering Schedule', style: GoogleFonts.comfortaa(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-          Text(schedule?.enabled == true ? 'Active - ${schedule?.recurringSchedule?.formattedDays ?? 'Custom'}' : 'Tap to configure', style: GoogleFonts.quicksand(fontSize: 13, color: AppTheme.soilBrown.withOpacity(0.6)))])),
-        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: schedule?.enabled == true ? AppTheme.leafGreen.withOpacity(0.1) : AppTheme.soilBrown.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+          Text(schedule?.enabled == true ? 'Active - ${schedule?.recurringSchedule?.formattedDays ?? 'Custom'}' : 'Tap to configure', style: GoogleFonts.quicksand(fontSize: 13, color: AppTheme.soilBrown.withValues(alpha:0.6)))])),
+        Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4), decoration: BoxDecoration(color: schedule?.enabled == true ? AppTheme.leafGreen.withValues(alpha:0.1) : AppTheme.soilBrown.withValues(alpha:0.1), borderRadius: BorderRadius.circular(12)),
           child: Text(schedule?.enabled == true ? 'On' : 'Off', style: GoogleFonts.quicksand(fontSize: 12, fontWeight: FontWeight.w600, color: schedule?.enabled == true ? AppTheme.leafGreen : AppTheme.soilBrown))),
         const SizedBox(width: 8), const Icon(Icons.chevron_right, color: AppTheme.soilBrown),
       ])));
@@ -281,12 +299,12 @@ class LinkDeviceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: AppTheme.terracotta.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.terracotta.withOpacity(0.3))),
+    return Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: AppTheme.terracotta.withValues(alpha:0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.terracotta.withValues(alpha:0.3))),
       child: Column(children: [
         const Icon(Icons.sensors_off, size: 48, color: AppTheme.terracotta), const SizedBox(height: 12),
         Text('No Device Connected', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.terracotta)),
         const SizedBox(height: 8),
-        Text('Link an ESP32 sensor to enable auto watering.', style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withOpacity(0.7)), textAlign: TextAlign.center),
+        Text('Link an ESP32 sensor to enable auto watering.', style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha:0.7)), textAlign: TextAlign.center),
         const SizedBox(height: 16),
         ElevatedButton.icon(onPressed: onLink, icon: const Icon(Icons.add_link), label: const Text('Link Device'), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta)),
       ]));
@@ -308,7 +326,7 @@ class ManualCareCard extends StatelessWidget {
         _CareRow(icon: Icons.water_drop, text: 'Water every ${rec.frequencyDays} days', color: AppTheme.waterBlue),
         _CareRow(icon: Icons.local_drink, text: '${rec.amountML}mL per watering', color: AppTheme.leafGreen),
         const SizedBox(height: 8),
-        Text(rec.description, style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.6), fontStyle: FontStyle.italic)),
+        Text(rec.description, style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6), fontStyle: FontStyle.italic)),
       ]));
   }
 }

@@ -133,7 +133,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.leafGreen.withOpacity(0.15),
+                          color: AppTheme.leafGreen.withValues(alpha:0.15),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -161,7 +161,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
                   'Enter the 6-digit code sent to',
                   style: GoogleFonts.quicksand(
                     fontSize: 15,
-                    color: AppTheme.soilBrown.withOpacity(0.7),
+                    color: AppTheme.soilBrown.withValues(alpha:0.7),
                   ),
                   textAlign: TextAlign.center,
                 ),

@@ -12,3 +12,16 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+**/GoogleService-Info.plist
+**/google-services.json
+**/xcuserdata/
+**/*.xcuserstate
+**/*.xccheckout
+**/*.xcscmblueprint
+
+# Xcode workspace data
+**/*.xcodeproj/project.xcworkspace/
+**/*.xcworkspace/xcuserdata/
+
+# Derived data
+DerivedData/

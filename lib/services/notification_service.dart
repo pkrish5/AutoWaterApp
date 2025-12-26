@@ -1,173 +1,226 @@
 import 'package:flutter/material.dart';
-// Note: In a real app, you'd use firebase_messaging package
-// This is a placeholder structure for the notification service
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'api_service.dart';
+
+// Background message handler - must be top-level function
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  debugPrint('Background message: ${message.messageId}');
+}
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
+  FirebaseMessaging? _messaging;
   String? _fcmToken;
   bool _initialized = false;
 
   String? get fcmToken => _fcmToken;
   bool get isInitialized => _initialized;
 
-  // Initialize notification service
+  /// Initialize Firebase and notification service
   Future<void> initialize() async {
     if (_initialized) return;
-    
+
     try {
-      // In a real implementation, you would:
-      // 1. Initialize Firebase
-      // 2. Request notification permissions
-      // 3. Get FCM token
-      // 4. Set up message handlers
+      // Initialize Firebase
+      await Firebase.initializeApp();
       
-      // Placeholder for FCM initialization
-      // await Firebase.initializeApp();
-      // final messaging = FirebaseMessaging.instance;
-      // 
-      // NotificationSettings settings = await messaging.requestPermission(
-      //   alert: true,
-      //   badge: true,
-      //   sound: true,
-      // );
-      // 
-      // if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      //   _fcmToken = await messaging.getToken();
-      //   debugPrint('FCM Token: $_fcmToken');
-      // }
-      
+      _messaging = FirebaseMessaging.instance;
+
+      // Set up background handler
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+      // Request permission
+      await requestPermission();
+
+      // Get FCM token
+      _fcmToken = await _messaging!.getToken();
+      debugPrint('FCM Token: $_fcmToken');
+
+      // Listen for token refresh
+      _messaging!.onTokenRefresh.listen((newToken) {
+        _fcmToken = newToken;
+        debugPrint('FCM Token refreshed: $newToken');
+        // TODO: Update token on server if user is logged in
+      });
+
+      // Set up foreground message handler
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+      // Handle notification tap when app is in background/terminated
+      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
+
+      // Check if app was opened from a notification
+      final initialMessage = await _messaging!.getInitialMessage();
+      if (initialMessage != null) {
+        _handleNotificationTap(initialMessage);
+      }
+
       _initialized = true;
-      debugPrint('Notification service initialized (placeholder)');
+      debugPrint('NotificationService initialized successfully');
     } catch (e) {
-      debugPrint('Failed to initialize notifications: $e');
+      debugPrint('Failed to initialize NotificationService: $e');
     }
   }
 
-  // Request permission for notifications
+  /// Request notification permissions
   Future<bool> requestPermission() async {
+    if (_messaging == null) return false;
+
     try {
-      // In real implementation:
-      // final messaging = FirebaseMessaging.instance;
-      // final settings = await messaging.requestPermission();
-      // return settings.authorizationStatus == AuthorizationStatus.authorized;
+      final settings = await _messaging!.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+
+      final granted = settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional;
       
-      return true; // Placeholder
+      debugPrint('Notification permission: ${settings.authorizationStatus}');
+      return granted;
     } catch (e) {
       debugPrint('Permission request failed: $e');
       return false;
     }
   }
 
-  // Get the FCM token
+  /// Get the FCM token
   Future<String?> getToken() async {
     if (!_initialized) {
       await initialize();
     }
-    
-    // In real implementation:
-    // _fcmToken = await FirebaseMessaging.instance.getToken();
-    
+    _fcmToken ??= await _messaging?.getToken();
     return _fcmToken;
   }
 
-  // Handle foreground messages
-  void setupForegroundHandler(Function(RemoteMessage) handler) {
-    // In real implementation:
-    // FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    //   handler(message);
-    // });
-    
-    debugPrint('Foreground handler set up (placeholder)');
-  }
-
-  // Handle background messages
-  static void setupBackgroundHandler() {
-    // In real implementation:
-    // FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-    
-    debugPrint('Background handler set up (placeholder)');
-  }
-
-  // Show local notification
-  Future<void> showLocalNotification({
-    required String title,
-    required String body,
-    String? payload,
+  /// Register push token with backend
+  Future<void> registerTokenWithServer({
+    required String userId,
+    required String authToken,
   }) async {
-    // In real implementation, use flutter_local_notifications:
-    // final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
-    //     FlutterLocalNotificationsPlugin();
-    // 
-    // const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    //     AndroidNotificationDetails(
-    //   'plant_care_channel',
-    //   'Plant Care Notifications',
-    //   importance: Importance.high,
-    //   priority: Priority.high,
-    // );
-    // 
-    // await flutterLocalNotificationsPlugin.show(
-    //   0,
-    //   title,
-    //   body,
-    //   NotificationDetails(android: androidPlatformChannelSpecifics),
-    //   payload: payload,
-    // );
-    
-    debugPrint('Local notification: $title - $body');
+    final token = await getToken();
+    if (token == null) {
+      debugPrint('No FCM token available');
+      return;
+    }
+
+    try {
+      final api = ApiService(authToken);
+      await api.registerPushToken(
+        userId: userId,
+        token: token,
+        platform: _getPlatform(),
+      );
+      debugPrint('Push token registered with server');
+    } catch (e) {
+      debugPrint('Failed to register push token: $e');
+    }
   }
 
-  // Subscribe to topic
+  String _getPlatform() {
+    // You can use Platform.isIOS / Platform.isAndroid if you import dart:io
+    // For now, return a generic value
+    return 'mobile';
+  }
+
+  /// Handle foreground messages
+  void _handleForegroundMessage(RemoteMessage message) {
+    debugPrint('Foreground message received: ${message.messageId}');
+    debugPrint('Title: ${message.notification?.title}');
+    debugPrint('Body: ${message.notification?.body}');
+    debugPrint('Data: ${message.data}');
+
+    // You can show a local notification or in-app alert here
+    // For now, we'll just log it
+  }
+
+  /// Handle notification tap
+  void _handleNotificationTap(RemoteMessage message) {
+    debugPrint('Notification tapped: ${message.messageId}');
+    debugPrint('Data: ${message.data}');
+
+    // Navigate based on notification type
+    final type = message.data['type'];
+    final plantId = message.data['plantId'];
+
+    switch (type) {
+      case 'water_refill':
+        // Navigate to plant detail
+        debugPrint('Should navigate to plant: $plantId');
+        break;
+      case 'streak_warning':
+        // Navigate to gallery or dashboard
+        debugPrint('Should prompt user to upload photo');
+        break;
+      case 'plant_health':
+        // Navigate to plant detail
+        debugPrint('Should navigate to plant: $plantId');
+        break;
+      default:
+        debugPrint('Unknown notification type: $type');
+    }
+  }
+
+  /// Subscribe to a topic
   Future<void> subscribeToTopic(String topic) async {
-    // In real implementation:
-    // await FirebaseMessaging.instance.subscribeToTopic(topic);
-    
-    debugPrint('Subscribed to topic: $topic');
+    try {
+      await _messaging?.subscribeToTopic(topic);
+      debugPrint('Subscribed to topic: $topic');
+    } catch (e) {
+      debugPrint('Failed to subscribe to topic: $e');
+    }
   }
 
-  // Unsubscribe from topic
+  /// Unsubscribe from a topic
   Future<void> unsubscribeFromTopic(String topic) async {
-    // In real implementation:
-    // await FirebaseMessaging.instance.unsubscribeFromTopic(topic);
-    
-    debugPrint('Unsubscribed from topic: $topic');
+    try {
+      await _messaging?.unsubscribeFromTopic(topic);
+      debugPrint('Unsubscribed from topic: $topic');
+    } catch (e) {
+      debugPrint('Failed to unsubscribe from topic: $e');
+    }
   }
-}
-
-// Placeholder for remote message class
-class RemoteMessage {
-  final String? title;
-  final String? body;
-  final Map<String, dynamic>? data;
-
-  RemoteMessage({this.title, this.body, this.data});
 }
 
 // Notification types for the app
 enum NotificationType {
   waterRefill,
-  wateringReminder,
+  streakWarning,
+  plantHealth,
   friendRequest,
-  dailyCheckIn,
-  streakMilestone,
 }
 
 extension NotificationTypeExtension on NotificationType {
+  String get value {
+    switch (this) {
+      case NotificationType.waterRefill:
+        return 'water_refill';
+      case NotificationType.streakWarning:
+        return 'streak_warning';
+      case NotificationType.plantHealth:
+        return 'plant_health';
+      case NotificationType.friendRequest:
+        return 'friend_request';
+    }
+  }
+
   String get title {
     switch (this) {
       case NotificationType.waterRefill:
         return 'Water Tank Low! 💧';
-      case NotificationType.wateringReminder:
-        return 'Time to Water! 🌱';
+      case NotificationType.streakWarning:
+        return 'Keep Your Streak! 🔥';
+      case NotificationType.plantHealth:
+        return 'Plant Needs Attention! 🌱';
       case NotificationType.friendRequest:
         return 'New Friend Request! 👋';
-      case NotificationType.dailyCheckIn:
-        return 'Daily Plant Check 📸';
-      case NotificationType.streakMilestone:
-        return 'Streak Milestone! 🔥';
     }
   }
 }

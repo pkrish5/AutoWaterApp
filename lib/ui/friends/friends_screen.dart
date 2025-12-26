@@ -81,7 +81,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
                 'Enter the exact username of the person you want to add',
                 style: GoogleFonts.quicksand(
                   fontSize: 12,
-                  color: AppTheme.soilBrown.withOpacity(0.6),
+                  color: AppTheme.soilBrown.withValues(alpha:0.6),
                 ),
               ),
             ],
@@ -89,7 +89,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           actions: [
             TextButton(
               onPressed: isSending ? null : () => Navigator.pop(ctx), 
-              child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withOpacity(0.7)))
+              child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)))
             ),
             ElevatedButton(
               onPressed: isSending ? null : () async {
@@ -204,7 +204,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     const Text('🌿', style: TextStyle(fontSize: 56)), const SizedBox(height: 16),
     Text(title, style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
     const SizedBox(height: 8),
-    Text(subtitle, style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withOpacity(0.6))),
+    Text(subtitle, style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.6))),
   ]));
 }
 
@@ -217,23 +217,23 @@ class _LeaderboardTile extends StatelessWidget {
       case 1: return const Color(0xFFFFD700);
       case 2: return const Color(0xFFC0C0C0);
       case 3: return const Color(0xFFCD7F32);
-      default: return AppTheme.soilBrown.withOpacity(0.5);
+      default: return AppTheme.soilBrown.withValues(alpha:0.5);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: entry.isCurrentUser ? AppTheme.leafGreen.withOpacity(0.1) : Colors.white,
+      decoration: BoxDecoration(color: entry.isCurrentUser ? AppTheme.leafGreen.withValues(alpha:0.1) : Colors.white,
         borderRadius: BorderRadius.circular(16), border: entry.isCurrentUser ? Border.all(color: AppTheme.leafGreen, width: 2) : null),
       child: Row(children: [
-        Container(width: 36, height: 36, decoration: BoxDecoration(color: _rankColor.withOpacity(0.2), shape: BoxShape.circle),
+        Container(width: 36, height: 36, decoration: BoxDecoration(color: _rankColor.withValues(alpha:0.2), shape: BoxShape.circle),
           child: Center(child: entry.rank <= 3 ? Text(['🥇', '🥈', '🥉'][entry.rank - 1], style: const TextStyle(fontSize: 18)) :
             Text('${entry.rank}', style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold, color: _rankColor)))),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(entry.odInname, style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
-          Text('${entry.plantCount} plants', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.6))),
+          Text('${entry.plantCount} plants', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6))),
         ])),
         Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(gradient: const LinearGradient(colors: [AppTheme.streakOrange, AppTheme.streakYellow]), borderRadius: BorderRadius.circular(12)),
@@ -254,13 +254,13 @@ class _FriendTile extends StatelessWidget {
     return Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
       child: Row(children: [
-        Container(width: 48, height: 48, decoration: BoxDecoration(color: AppTheme.softSage.withOpacity(0.5), shape: BoxShape.circle),
+        Container(width: 48, height: 48, decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha:0.5), shape: BoxShape.circle),
           child: const Center(child: Text('🌱', style: TextStyle(fontSize: 24)))),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(friend.odInname, style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
           Row(children: [const Icon(Icons.local_fire_department, size: 14, color: AppTheme.streakOrange), const SizedBox(width: 4),
-            Text('${friend.streak} day streak', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.6)))]),
+            Text('${friend.streak} day streak', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6)))]),
         ])),
         IconButton(icon: const Icon(Icons.visibility, color: AppTheme.leafGreen), onPressed: () {
           // View friend's garden
@@ -280,16 +280,16 @@ class _RequestTile extends StatelessWidget {
     return Container(margin: const EdgeInsets.only(bottom: 12), padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
       child: Row(children: [
-        Container(width: 48, height: 48, decoration: BoxDecoration(color: AppTheme.softSage.withOpacity(0.5), shape: BoxShape.circle),
+        Container(width: 48, height: 48, decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha:0.5), shape: BoxShape.circle),
           child: const Center(child: Text('👋', style: TextStyle(fontSize: 24)))),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(request.fromUsername, style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
-          Text('🔥 ${request.streak} day streak', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.6))),
+          Text('🔥 ${request.streak} day streak', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6))),
         ])),
         IconButton(icon: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.leafGreen, shape: BoxShape.circle),
           child: const Icon(Icons.check, color: Colors.white, size: 18)), onPressed: onAccept),
-        IconButton(icon: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.terracotta.withOpacity(0.2), shape: BoxShape.circle),
+        IconButton(icon: Container(padding: const EdgeInsets.all(6), decoration: BoxDecoration(color: AppTheme.terracotta.withValues(alpha:0.2), shape: BoxShape.circle),
           child: const Icon(Icons.close, color: AppTheme.terracotta, size: 18)), onPressed: onDecline),
       ]));
   }

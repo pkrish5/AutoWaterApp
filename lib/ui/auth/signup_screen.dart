@@ -31,8 +31,12 @@ class _SignupScreenState extends State<SignupScreen> {
     final email = _emailController.text.trim();
     final error = await auth.signUp(email, _passwordController.text, _nameController.text);
     if (mounted) {
-      if (error == null) Navigator.push(context, MaterialPageRoute(builder: (_) => VerificationScreen(email: email)));
-      else ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: AppTheme.terracotta, behavior: SnackBarBehavior.floating));
+      if (error == null){
+        Navigator.push(context, MaterialPageRoute(builder: (_) => VerificationScreen(email: email)));
+      }
+      else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: AppTheme.terracotta, behavior: SnackBarBehavior.floating));
+      }
     }
   }
 
@@ -57,7 +61,7 @@ class _SignupScreenState extends State<SignupScreen> {
           decoration: InputDecoration(
             labelText: 'Username',
             prefixIcon: Icon(Icons.person_outline,
-              color: AppTheme.leafGreen.withOpacity(0.7),
+              color: AppTheme.leafGreen.withValues(alpha:0.7),
             ),
           ),
           validator: (v) {
@@ -69,16 +73,16 @@ class _SignupScreenState extends State<SignupScreen> {
         ),
 const SizedBox(height: 18),
         TextFormField(controller: _emailController, keyboardType: TextInputType.emailAddress,
-          decoration: InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline, color: AppTheme.leafGreen.withOpacity(0.7))),
+          decoration: InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline, color: AppTheme.leafGreen.withValues(alpha:0.7))),
           validator: (v) { if (v == null || v.isEmpty || !v.contains('@')) return 'Please enter a valid email'; return null; }),
         const SizedBox(height: 18),
         TextFormField(controller: _passwordController, obscureText: _obscurePassword,
-          decoration: InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.leafGreen.withOpacity(0.7)),
+          decoration: InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.leafGreen.withValues(alpha:0.7)),
             suffixIcon: IconButton(icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscurePassword = !_obscurePassword))),
           validator: (v) { if (v == null || v.length < 8) return 'Password must be at least 8 characters'; return null; }),
         const SizedBox(height: 18),
         TextFormField(controller: _confirmPasswordController, obscureText: _obscureConfirm,
-          decoration: InputDecoration(labelText: 'Confirm Password', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.leafGreen.withOpacity(0.7)),
+          decoration: InputDecoration(labelText: 'Confirm Password', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.leafGreen.withValues(alpha:0.7)),
             suffixIcon: IconButton(icon: Icon(_obscureConfirm ? Icons.visibility_off : Icons.visibility), onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm))),
           validator: (v) { if (v != _passwordController.text) return 'Passwords do not match'; return null; }),
         const SizedBox(height: 32),
@@ -87,7 +91,7 @@ const SizedBox(height: 18),
             : Text('Create Account', style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.w600)))),
         const SizedBox(height: 24),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text("Already have an account? ", style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withOpacity(0.7))),
+          Text("Already have an account? ", style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7))),
           TextButton(onPressed: () => Navigator.pop(context), child: Text('Login', style: GoogleFonts.quicksand(color: AppTheme.terracotta, fontWeight: FontWeight.w600))),
         ]),
         const SizedBox(height: 40),
@@ -137,7 +141,7 @@ class _VerificationScreenState extends State<VerificationScreen> {
         const SizedBox(height: 28),
         Text('Verify Email', style: GoogleFonts.comfortaa(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.leafGreen), textAlign: TextAlign.center),
         const SizedBox(height: 12),
-        Text('Enter the 6-digit code sent to', style: GoogleFonts.quicksand(fontSize: 15, color: AppTheme.soilBrown.withOpacity(0.7)), textAlign: TextAlign.center),
+        Text('Enter the 6-digit code sent to', style: GoogleFonts.quicksand(fontSize: 15, color: AppTheme.soilBrown.withValues(alpha:0.7)), textAlign: TextAlign.center),
         Text(widget.email, style: GoogleFonts.quicksand(fontSize: 15, fontWeight: FontWeight.w600, color: AppTheme.leafGreen), textAlign: TextAlign.center),
         const SizedBox(height: 40),
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: List.generate(6, (i) => SizedBox(width: 48, height: 56,

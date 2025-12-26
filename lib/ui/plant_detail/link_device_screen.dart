@@ -143,7 +143,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: AppTheme.leafGreen.withOpacity(0.15),
+            color: AppTheme.leafGreen.withValues(alpha:0.15),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -192,7 +192,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
           'Enter the Device ID printed on your ESP32 sensor module or scan the QR code on the device.',
           style: GoogleFonts.quicksand(
             fontSize: 15,
-            color: AppTheme.soilBrown.withOpacity(0.7),
+            color: AppTheme.soilBrown.withValues(alpha:0.7),
             height: 1.5,
           ),
           textAlign: TextAlign.center,
@@ -218,7 +218,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
           controller: _deviceIdController,
           decoration: InputDecoration(
             hintText: 'e.g., plant-001 or ESP32-ABC123',
-            prefixIcon: Icon(Icons.qr_code, color: AppTheme.leafGreen.withOpacity(0.7)),
+            prefixIcon: Icon(Icons.qr_code, color: AppTheme.leafGreen.withValues(alpha:0.7)),
             suffixIcon: IconButton(
               icon: const Icon(Icons.qr_code_scanner, color: AppTheme.leafGreen),
               onPressed: () {
@@ -270,7 +270,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.softSage.withOpacity(0.3),
+        color: AppTheme.softSage.withValues(alpha:0.3),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -319,7 +319,7 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
               text,
               style: GoogleFonts.quicksand(
                 fontSize: 13,
-                color: AppTheme.soilBrown.withOpacity(0.8),
+                color: AppTheme.soilBrown.withValues(alpha:0.8),
               ),
             ),
           ),

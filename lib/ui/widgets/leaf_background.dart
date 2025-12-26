@@ -12,7 +12,7 @@ class LeafBackground extends StatelessWidget {
     return Stack(children: [
       Container(decoration: BoxDecoration(gradient: LinearGradient(
         begin: Alignment.topLeft, end: Alignment.bottomRight,
-        colors: [const Color(0xFFFAF8F5), const Color(0xFFE8F5E9).withOpacity(0.5), const Color(0xFFFAF8F5)]))),
+        colors: [const Color(0xFFFAF8F5), const Color(0xFFE8F5E9).withValues(alpha:0.5), const Color(0xFFFAF8F5)]))),
       ...List.generate(leafCount, (index) {
         final random = math.Random(index);
         return Positioned(

@@ -6,6 +6,8 @@ class AppTheme {
   static const Color leafGreen = Color(0xFF2D5A27);
   static const Color softSage = Color(0xFFB8D4B8);
   static const Color mintGreen = Color(0xFF98D4BB);
+    static const Color mossGreen = Color(0xFF8A9A5B);
+
   
   // Accent colors
   static const Color terracotta = Color(0xFFD4694A);
@@ -26,6 +28,7 @@ class AppTheme {
   static const Color streakOrange = Color(0xFFFF6B35);
   static const Color streakYellow = Color(0xFFFFD700);
   
+
   // Background
   static const Color cream = Color(0xFFFAF8F5);
   static const Color cardWhite = Colors.white;
@@ -88,7 +91,7 @@ class AppTheme {
           borderSide: const BorderSide(color: terracotta, width: 2),
         ),
         labelStyle: GoogleFonts.quicksand(color: soilBrown),
-        hintStyle: GoogleFonts.quicksand(color: soilBrown.withOpacity(0.5)),
+        hintStyle: GoogleFonts.quicksand(color: soilBrown.withValues(alpha:0.5)),
       ),
       cardTheme: CardThemeData(
         color: Colors.white,
@@ -100,7 +103,7 @@ class AppTheme {
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
         selectedItemColor: leafGreen,
-        unselectedItemColor: soilBrown.withOpacity(0.5),
+        unselectedItemColor: soilBrown.withValues(alpha:0.5),
         type: BottomNavigationBarType.fixed,
         elevation: 8,
       ),

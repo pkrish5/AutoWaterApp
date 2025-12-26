@@ -87,7 +87,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         TextField(controller: newPwController, obscureText: true, decoration: const InputDecoration(labelText: 'New Password')),
       ]),
       actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withOpacity(0.7)))),
+        TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)))),
         ElevatedButton(onPressed: () async {
           final auth = Provider.of<AuthService>(context, listen: false);
           final error = await auth.changePassword(oldPwController.text, newPwController.text);
@@ -147,7 +147,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileCard(AuthService auth) => Container(padding: const EdgeInsets.all(24),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
     child: Column(children: [
-      Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: AppTheme.softSage.withOpacity(0.3), shape: BoxShape.circle),
+      Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha:0.3), shape: BoxShape.circle),
         child: const Text('🌱', style: TextStyle(fontSize: 48))),
       const SizedBox(height: 16),
       if (_isEditingUsername) Row(children: [
@@ -156,18 +156,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         IconButton(icon: const Icon(Icons.close, color: AppTheme.terracotta), onPressed: () => setState(() => _isEditingUsername = false)),
       ]) else Row(mainAxisAlignment: MainAxisAlignment.center, children: [
         Text(_user?.displayName ?? auth.userEmail?.split('@').first ?? 'User', style: GoogleFonts.comfortaa(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-        IconButton(icon: Icon(Icons.edit, size: 18, color: AppTheme.soilBrown.withOpacity(0.5)), onPressed: () {
+        IconButton(icon: Icon(Icons.edit, size: 18, color: AppTheme.soilBrown.withValues(alpha:0.5)), onPressed: () {
           _usernameController.text = _user?.username ?? '';
           setState(() => _isEditingUsername = true);
         }),
       ]),
       const SizedBox(height: 4),
-      Text(auth.userEmail ?? '', style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withOpacity(0.6))),
+      Text(auth.userEmail ?? '', style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha:0.6))),
       const SizedBox(height: 8),
-      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(color: AppTheme.softSage.withOpacity(0.3), borderRadius: BorderRadius.circular(12)),
-        child: Text('Member since ${_user?.memberSince ?? 'Unknown'}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.7)))),
+      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha:0.3), borderRadius: BorderRadius.circular(12)),
+        child: Text('Member since ${_user?.memberSince ?? 'Unknown'}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.7)))),
       const SizedBox(height: 12),
-      Text('User ID: ${auth.userId ?? 'N/A'}', style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withOpacity(0.4))),
+      Text('User ID: ${auth.userId ?? 'N/A'}', style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withValues(alpha:0.4))),
     ]));
 
   Widget _buildStreakCard() => Container(padding: const EdgeInsets.all(20),
@@ -177,7 +177,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       const SizedBox(width: 16),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Current Streak', style: GoogleFonts.comfortaa(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-        Text('Longest: ${_user?.longestStreak ?? 0} days', style: GoogleFonts.quicksand(fontSize: 13, color: AppTheme.soilBrown.withOpacity(0.6))),
+        Text('Longest: ${_user?.longestStreak ?? 0} days', style: GoogleFonts.quicksand(fontSize: 13, color: AppTheme.soilBrown.withValues(alpha:0.6))),
       ])),
     ]));
 
@@ -188,10 +188,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Text('Location', style: GoogleFonts.comfortaa(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.soilBrown))]),
       const SizedBox(height: 12),
       Row(children: [
-        Expanded(child: Text(_user?.location?.displayLocation ?? 'Not set', style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withOpacity(0.8)))),
+        Expanded(child: Text(_user?.location?.displayLocation ?? 'Not set', style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha:0.8)))),
         TextButton.icon(onPressed: _updateLocation, icon: const Icon(Icons.edit_location_alt, size: 18), label: Text('Update', style: GoogleFonts.quicksand())),
       ]),
-      if (_user?.location?.timezone != null) Text('Timezone: ${_user!.location!.timezone}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withOpacity(0.5))),
+      if (_user?.location?.timezone != null) Text('Timezone: ${_user!.location!.timezone}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.5))),
     ]));
 
   Widget _buildSettingsCard() => Container(padding: const EdgeInsets.all(8),

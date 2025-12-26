@@ -33,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
           color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: AppTheme.leafGreen.withOpacity(0.1),
+              color: AppTheme.leafGreen.withValues(alpha:0.1),
               blurRadius: 20,
               offset: const Offset(0, -5),
             ),
@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? AppTheme.leafGreen.withOpacity(0.1) : Colors.transparent,
+          color: isSelected ? AppTheme.leafGreen.withValues(alpha:0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
@@ -73,7 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Icon(
               icon,
-              color: isSelected ? AppTheme.leafGreen : AppTheme.soilBrown.withOpacity(0.5),
+              color: isSelected ? AppTheme.leafGreen : AppTheme.soilBrown.withValues(alpha:0.5),
               size: 24,
             ),
             const SizedBox(height: 4),
@@ -82,7 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.quicksand(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? AppTheme.leafGreen : AppTheme.soilBrown.withOpacity(0.5),
+                color: isSelected ? AppTheme.leafGreen : AppTheme.soilBrown.withValues(alpha:0.5),
               ),
             ),
           ],

@@ -53,7 +53,7 @@ class _LiquidGaugePainter extends CustomPainter {
     canvas.clipPath(Path()..addOval(Rect.fromCircle(center: center, radius: radius)));
 
     final bgPaint = Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-      colors: [Colors.white.withOpacity(0.3), Colors.blue.withOpacity(0.05)]).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      colors: [Colors.white.withValues(alpha:0.3), Colors.blue.withValues(alpha:0.05)]).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
     canvas.drawRect(Rect.fromLTWH(0, 0, size.width, size.height), bgPaint);
 
     final waterPaint = Paint()..shader = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
@@ -71,7 +71,7 @@ class _LiquidGaugePainter extends CustomPainter {
     canvas.drawPath(wavePath, waterPaint);
 
     canvas.restore();
-    final borderPaint = Paint()..color = waterColor.withOpacity(0.3)..style = PaintingStyle.stroke..strokeWidth = 3;
+    final borderPaint = Paint()..color = waterColor.withValues(alpha:0.3)..style = PaintingStyle.stroke..strokeWidth = 3;
     canvas.drawCircle(center, radius - 1.5, borderPaint);
   }
 

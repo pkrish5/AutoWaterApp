@@ -14,7 +14,7 @@ import 'schedule_screen.dart';
 import 'link_device_screen.dart';
 import 'plant_info_screen.dart';
 import '../widgets/plant_detail_widgets.dart';
-
+import '../../models/plant_profile.dart';
 // Result class to pass back both refresh flag and streak
 class PlantDetailResult {
   final bool needsRefresh;
@@ -127,7 +127,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
         ]),
         content: Text('This will disconnect the sensor from ${_plant.nickname}.', style: GoogleFonts.quicksand(color: AppTheme.soilBrown)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withOpacity(0.7)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)))),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta), child: const Text('Unlink')),
         ],
       ),
@@ -208,6 +208,265 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   
   void _navigateToPlantInfo() => Navigator.push(context, MaterialPageRoute(builder: (_) => PlantInfoScreen(plant: _plant)));
 
+  // Replace your _showEditPlantDialog method with this:
+
+Future<void> _showEditPlantDialog() async {
+  final nicknameController = TextEditingController(text: _plant.nickname);
+  List<PlantProfile> profiles = [];
+  String? selectedSpecies = _plant.species;
+  bool isCustom = false;
+  bool isLoading = true;
+  final customSpeciesController = TextEditingController();
+
+  // Load plant profiles
+  try {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
+    profiles = await api.getPlantProfiles();
+    
+    // Check if current species is in the list
+    isCustom = !profiles.any((p) => p.species == _plant.species || p.commonName == _plant.species);
+    if (isCustom) {
+      customSpeciesController.text = _plant.species;
+    }
+  } catch (e) {
+    debugPrint('Failed to load profiles: $e');
+  }
+  isLoading = false;
+
+  final result = await showDialog<Map<String, String>?>(
+    context: context,
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setDialogState) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(children: [
+            Icon(Icons.edit, color: AppTheme.leafGreen),
+            const SizedBox(width: 12),
+            Text(
+              'Edit Plant',
+              style: GoogleFonts.comfortaa(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.soilBrown,
+              ),
+            ),
+          ]),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Nickname field
+                TextField(
+                  controller: nicknameController,
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
+                    prefixIcon: Icon(Icons.local_florist, color: AppTheme.leafGreen),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.leafGreen.withValues(alpha:0.3)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: AppTheme.leafGreen, width: 2),
+                    ),
+                    filled: true,
+                    fillColor: AppTheme.leafGreen.withValues(alpha:0.05),
+                  ),
+                  style: GoogleFonts.quicksand(
+                    color: AppTheme.soilBrown,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Species dropdown
+                if (isLoading)
+                  const CircularProgressIndicator()
+                else ...[
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: isCustom ? 'custom' : (profiles.any((p) => p.species == selectedSpecies) ? selectedSpecies : null),
+                    decoration: InputDecoration(
+                      labelText: 'Species',
+                      labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
+                      prefixIcon: Icon(Icons.eco, color: AppTheme.mossGreen),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppTheme.mossGreen.withValues(alpha:0.3)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: AppTheme.mossGreen, width: 2),
+                      ),
+                      filled: true,
+                      fillColor: AppTheme.mossGreen.withValues(alpha:0.05),
+                    ),
+                    style: GoogleFonts.quicksand(
+                      color: AppTheme.soilBrown,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    dropdownColor: Colors.white,
+                    items: [
+                      ...profiles.map((profile) => DropdownMenuItem(
+                        value: profile.species,
+                        child: Text(profile.displayName),
+                      )),
+                      DropdownMenuItem(
+                        value: 'custom',
+                        child: Text(
+                          '+ Other...',
+                          style: TextStyle(color: AppTheme.leafGreen),
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      setDialogState(() {
+                        if (value == 'custom') {
+                          isCustom = true;
+                          selectedSpecies = null;
+                        } else {
+                          isCustom = false;
+                          selectedSpecies = value;
+                          customSpeciesController.clear();
+                        }
+                      });
+                    },
+                  ),
+                  
+                  // Custom species text field
+                  if (isCustom) ...[
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: customSpeciesController,
+                      decoration: InputDecoration(
+                        labelText: 'Enter Species Name',
+                        labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
+                        prefixIcon: Icon(Icons.edit_note, color: AppTheme.mossGreen),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppTheme.mossGreen.withValues(alpha:0.3)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: AppTheme.mossGreen, width: 2),
+                        ),
+                        filled: true,
+                        fillColor: AppTheme.mossGreen.withValues(alpha:0.05),
+                        hintText: 'e.g., Cherry Tomato',
+                      ),
+                      style: GoogleFonts.quicksand(
+                        color: AppTheme.soilBrown,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ],
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(
+                'Cancel',
+                style: GoogleFonts.quicksand(
+                  color: AppTheme.soilBrown.withValues(alpha:0.7),
+                ),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final species = isCustom 
+                    ? customSpeciesController.text.trim()
+                    : selectedSpecies ?? _plant.species;
+                    
+                if (species.isEmpty) {
+                  ScaffoldMessenger.of(ctx).showSnackBar(
+                    SnackBar(content: Text('Please select or enter a species')),
+                  );
+                  return;
+                }
+                
+                Navigator.pop(ctx, {
+                  'nickname': nicknameController.text.trim(),
+                  'species': species,
+                });
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.leafGreen,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(
+                'Save',
+                style: GoogleFonts.quicksand(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+
+  if (result != null) {
+    await _updatePlant(result['nickname']!, result['species']!);
+  }
+}
+
+
+  Future<void> _updatePlant(String nickname, String species) async {
+    // Check if anything changed
+    if (nickname == _plant.nickname && species == _plant.species) {
+      return;
+    }
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+
+      final updatedPlant = await api.updatePlant(
+        plantId: _plant.plantId,
+        nickname: nickname != _plant.nickname ? nickname : null,
+        species: species != _plant.species ? species : null,
+      );
+
+      setState(() {
+        _plant = Plant(
+          plantId: _plant.plantId,
+          userId: _plant.userId,
+          nickname: updatedPlant['nickname'] ?? nickname,
+          species: updatedPlant['species'] ?? species,
+          esp32DeviceId: _plant.esp32DeviceId,
+          waterPercentage: _plant.waterPercentage,
+          streak: _plant.streak,
+          currentHealth: _plant.currentHealth,
+          environment: _plant.environment,
+          addedAt: _plant.addedAt,
+          speciesInfo: _plant.speciesInfo,
+        );
+      });
+
+      _needsDashboardRefresh = true;
+      _showSnackBar('Plant updated successfully!');
+    } catch (e) {
+      _showSnackBar('Failed to update: $e', isError: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope(
@@ -236,6 +495,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                   onInfo: _navigateToPlantInfo,
                   onGallery: _navigateToGallery,
                   onUnlink: _plant.hasDevice ? _unlinkDevice : null,
+                  onEdit: _showEditPlantDialog,
                 ),
                 Expanded(
                   child: _isLoading
@@ -247,7 +507,10 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                             padding: const EdgeInsets.all(20),
                             child: Column(
                               children: [
-                                PlantInfoCard(plant: _plant),
+                                PlantInfoCard(
+                                  plant: _plant,
+                                  onEdit: _showEditPlantDialog,
+                                ),
                                 const SizedBox(height: 20),
                                 QuickActionsRow(
                                   plant: _plant,

@@ -35,7 +35,7 @@ class StreakWidget extends StatelessWidget {
           boxShadow: streak > 0
               ? [
                   BoxShadow(
-                    color: AppTheme.streakOrange.withOpacity(0.3),
+                    color: AppTheme.streakOrange.withValues(alpha:0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 2),
                   ),
@@ -61,7 +61,7 @@ class StreakWidget extends StatelessWidget {
                 'day${streak == 1 ? '' : 's'}',
                 style: GoogleFonts.quicksand(
                   fontSize: 12 * size,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha:0.9),
                 ),
               ),
             ],
@@ -80,7 +80,7 @@ class StreakWidget extends StatelessWidget {
           Icon(
             Icons.local_fire_department,
             size: 24 * scale,
-            color: Colors.white.withOpacity(0.5),
+            color: Colors.white.withValues(alpha:0.5),
           ),
         // Main icon
         Icon(
@@ -145,7 +145,7 @@ class StreakWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.softSage.withOpacity(0.3),
+                color: AppTheme.softSage.withValues(alpha:0.3),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
@@ -154,7 +154,7 @@ class StreakWidget extends StatelessWidget {
                     _getStreakMessage(streak),
                     style: GoogleFonts.quicksand(
                       fontSize: 14,
-                      color: AppTheme.soilBrown.withOpacity(0.8),
+                      color: AppTheme.soilBrown.withValues(alpha:0.8),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -163,7 +163,7 @@ class StreakWidget extends StatelessWidget {
                     _getStreakTip(),
                     style: GoogleFonts.quicksand(
                       fontSize: 12,
-                      color: AppTheme.soilBrown.withOpacity(0.6),
+                      color: AppTheme.soilBrown.withValues(alpha:0.6),
                       fontStyle: FontStyle.italic,
                     ),
                     textAlign: TextAlign.center,
@@ -282,7 +282,7 @@ class _AnimatedStreakWidgetState extends State<AnimatedStreakWidget>
               boxShadow: widget.streak > 0
                   ? [
                       BoxShadow(
-                        color: AppTheme.streakOrange.withOpacity(_glowAnimation.value),
+                        color: AppTheme.streakOrange.withValues(alpha:_glowAnimation.value),
                         blurRadius: 12,
                         spreadRadius: 2,
                       ),

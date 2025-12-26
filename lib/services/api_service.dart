@@ -8,7 +8,7 @@ import '../models/user.dart';
 import '../models/plant_image.dart';
 import '../models/sensor_data.dart';
 import '../models/paginated_images.dart';
-
+import '../models/plant_profile.dart';
 class ApiService {
   final String authToken;
 
@@ -459,27 +459,20 @@ Future<Plant> getPlant(String plantId) async {
     }
   }
 
-  Future<bool> registerPushToken({
-    required String userId,
-    required String token,
-    required String platform,
-  }) async {
-    try {
-      final response = await http.post(
-        Uri.parse('${AppConstants.baseUrl}/users/$userId/push-token'),
-        headers: _headers,
-        body: jsonEncode({
-          'token': token,
-          'platform': platform,
-        }),
-      );
-
-      return response.statusCode == 200;
-    } catch (e) {
-      throw Exception("Failed to register push token: $e");
-    }
-  }
-
+  Future<void> registerPushToken({
+  required String userId,
+  required String token,
+  required String platform,
+}) async {
+  await http.post(
+    Uri.parse('${AppConstants.baseUrl}/users/$userId/push-token'),
+    headers: _headers,
+    body: jsonEncode({
+      'token': token,
+      'platform': platform,
+    }),
+  );
+}
   // ==================== IMAGE MANAGEMENT ====================
 
   Future<Map<String, dynamic>> uploadPlantImage({
@@ -613,26 +606,47 @@ Future<Plant> getPlant(String plantId) async {
       throw Exception("$e");
     }
   }
+Future<Map<String, dynamic>> updatePlant({
+  required String plantId,
+  String? nickname,
+  String? species,
+}) async {
+  final body = <String, dynamic>{};
+  if (nickname != null) body['nickname'] = nickname;
+  if (species != null) body['species'] = species;
+
+  final response = await http.put(
+    Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
+    headers: _headers,
+    body: jsonEncode(body),
+  );
+
+  if (response.statusCode == 200) {
+    return jsonDecode(response.body);
+  } else {
+    throw Exception('Failed to update plant: ${response.body}');
+  }
+}
 
 
 
   Future<bool> respondToFriendRequest({
-    required String userId,
-    required String requestId,
-    required bool accept,
-  }) async {
-    try {
-      final response = await http.put(
-        Uri.parse('${AppConstants.baseUrl}/users/$userId/friend-requests/$requestId'),
-        headers: _headers,
-        body: jsonEncode({'accept': accept}),
-      );
+  required String userId,
+  required String requestId,
+  required bool accept,
+}) async {
+  try {
+    final response = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/users/$userId/friend-requests/$requestId'),
+      headers: _headers,
+      body: jsonEncode({'accept': accept}),
+    );
 
-      return response.statusCode == 200;
-    } catch (e) {
-      throw Exception("Failed to respond to request: $e");
-    }
+    return response.statusCode == 200;
+  } catch (e) {
+    throw Exception("Failed to respond to request: $e");
   }
+}
 
   Future<bool> removeFriend({
     required String userId,
@@ -744,4 +758,33 @@ Future<PaginatedImages> getPlantImagesPaginated(
       throw Exception("Connection error: $e");
     }
   }
+  Future<List<PlantProfile>> getPlantProfiles() async {
+  final response = await http.get(
+    Uri.parse('${AppConstants.baseUrl}/plant-profiles'),
+    headers: _headers,
+  );
+
+  if (response.statusCode == 200) {
+    final List<dynamic> data = jsonDecode(response.body);
+    return data.map((json) => PlantProfile.fromJson(json)).toList();
+  } else {
+    throw Exception('Failed to fetch plant profiles');
+  }
+}
+
+/// Fetch specific plant profile with full care details
+Future<PlantProfile> getPlantProfile(String species) async {
+  final encodedSpecies = Uri.encodeComponent(species);
+  final response = await http.get(
+    Uri.parse('${AppConstants.baseUrl}/plant-profiles/$encodedSpecies'),
+    headers: _headers,
+  );
+
+  if (response.statusCode == 200) {
+    return PlantProfile.fromJson(jsonDecode(response.body));
+  } else {
+    throw Exception('Failed to fetch plant profile');
+  }
+}
+
 }

@@ -30,7 +30,7 @@ class _PlantLoadingIndicatorState extends State<PlantLoadingIndicator> with Sing
         return Transform.translate(offset: Offset(0, _bounceAnimation.value), child: const Text('🌱', style: TextStyle(fontSize: 48)));
       }),
       const SizedBox(height: 16),
-      if (widget.message != null) Text(widget.message!, style: TextStyle(color: AppTheme.soilBrown.withOpacity(0.7), fontSize: 16)),
+      if (widget.message != null) Text(widget.message!, style: TextStyle(color: AppTheme.soilBrown.withValues(alpha:0.7), fontSize: 16)),
     ]);
   }
 }

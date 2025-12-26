@@ -171,7 +171,7 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [
                 BoxShadow(
-                  color: AppTheme.streakOrange.withOpacity(0.4),
+                  color: AppTheme.streakOrange.withValues(alpha:0.4),
                   blurRadius: 20,
                   spreadRadius: 2,
                 ),
@@ -195,7 +195,7 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
                   streak == 1 ? 'Great start! Keep it going!' : 'Amazing dedication! 🌱',
                   style: GoogleFonts.quicksand(
                     fontSize: 16,
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha:0.9),
                   ),
                 ),
               ],
@@ -320,7 +320,7 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
                   "${_images.length} photos",
                   style: GoogleFonts.quicksand(
                     fontSize: 12,
-                    color: AppTheme.soilBrown.withOpacity(0.6),
+                    color: AppTheme.soilBrown.withValues(alpha:0.6),
                   ),
                 ),
               ],
@@ -387,7 +387,7 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.softSage.withOpacity(0.2),
+        color: AppTheme.softSage.withValues(alpha:0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -464,7 +464,7 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
                       image.imageType,
                       style: GoogleFonts.quicksand(
                         fontSize: 12,
-                        color: AppTheme.soilBrown.withOpacity(0.6),
+                        color: AppTheme.soilBrown.withValues(alpha:0.6),
                       ),
                     ),
                     if (image.analysis != null) ...[
@@ -513,7 +513,7 @@ class _DateBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.6),
+        color: Colors.black.withValues(alpha:0.6),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 11)),

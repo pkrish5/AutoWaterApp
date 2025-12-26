@@ -12,6 +12,7 @@ import '../plant_detail/plant_detail_screen.dart';
 import './plant_card.dart';
 import 'add_plant_screen.dart';
 
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
   
@@ -28,6 +29,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadData();
+    
+
   }
 
   void _loadData() {
@@ -104,7 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.leafGreen.withOpacity(0.1),
+                            color: AppTheme.leafGreen.withValues(alpha:0.1),
                             blurRadius: 10,
                           ),
                         ],
@@ -128,7 +131,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             'Your plant twins await',
                             style: GoogleFonts.quicksand(
                               fontSize: 13,
-                              color: AppTheme.soilBrown.withOpacity(0.7),
+                              color: AppTheme.soilBrown.withValues(alpha:0.7),
                             ),
                           ),
                         ],
@@ -177,7 +180,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   '${snapshot.error}',
                                   style: GoogleFonts.quicksand(
                                     fontSize: 14,
-                                    color: AppTheme.soilBrown.withOpacity(0.7),
+                                    color: AppTheme.soilBrown.withValues(alpha:0.7),
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
@@ -248,7 +251,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppTheme.leafGreen.withOpacity(0.15),
+                    color: AppTheme.leafGreen.withValues(alpha:0.15),
                     blurRadius: 30,
                     offset: const Offset(0, 10),
                   ),
@@ -270,7 +273,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               'Tap the button below to add\nyour first digital plant twin',
               style: GoogleFonts.quicksand(
                 fontSize: 16,
-                color: AppTheme.soilBrown.withOpacity(0.7),
+                color: AppTheme.soilBrown.withValues(alpha:0.7),
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
