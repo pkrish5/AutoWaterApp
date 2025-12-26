@@ -15,6 +15,14 @@ import 'link_device_screen.dart';
 import 'plant_info_screen.dart';
 import '../widgets/plant_detail_widgets.dart';
 
+// Result class to pass back both refresh flag and streak
+class PlantDetailResult {
+  final bool needsRefresh;
+  final int? updatedStreak;
+  
+  PlantDetailResult({this.needsRefresh = false, this.updatedStreak});
+}
+
 class PlantDetailScreen extends StatefulWidget {
   final Plant plant;
   const PlantDetailScreen({super.key, required this.plant});
@@ -31,19 +39,20 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   bool _isWatering = false;
   bool _isRefilling = false;
   bool _needsDashboardRefresh = false;
+  int? _updatedStreak;
   late Plant _plant;
 
   Future<void> _refreshPlant() async {
-  final auth = Provider.of<AuthService>(context, listen: false);
-  final api = ApiService(auth.idToken!);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
 
-  final updatedPlant = await api.getPlant(_plant.plantId);
+    final updatedPlant = await api.getPlant(_plant.plantId);
 
-  setState(() {
-    _plant = updatedPlant;
-    _isLoading = false;
-  });
-}
+    setState(() {
+      _plant = updatedPlant;
+      _isLoading = false;
+    });
+  }
 
   @override
   void initState() {
@@ -70,7 +79,6 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
 
       try {
         final sensorData = await api.getLatestSensorData(_plant.plantId, auth.userId!);
-
         if (mounted) setState(() => _latestSensor = sensorData);
       } catch (e) { debugPrint('Sensor data failed: $e'); }
     }
@@ -126,22 +134,22 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     );
     if (confirm != true) return;
     try {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final api = ApiService(auth.idToken!);
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
 
-    await api.unlinkDevice(
-      plantId: _plant.plantId,
-      userId: auth.userId!,
-    );
+      await api.unlinkDevice(
+        plantId: _plant.plantId,
+        userId: auth.userId!,
+      );
 
-    _needsDashboardRefresh = true;
-    _showSnackBar('Device unlinked successfully');
+      _needsDashboardRefresh = true;
+      _showSnackBar('Device unlinked successfully');
 
-    await _refreshPlant();
-    await _loadData();
-  } catch (e) {
-    _showSnackBar('Failed: $e', isError: true);
-  }
+      await _refreshPlant();
+      await _loadData();
+    } catch (e) {
+      _showSnackBar('Failed: $e', isError: true);
+    }
   }
   
   void _showSnackBar(String msg, {bool isError = false}) {
@@ -157,108 +165,127 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     if (result == true) _loadData();
   }
 
-void _navigateToLinkDevice() async {
-  final linked = await Navigator.push<bool>(
-    context,
-    MaterialPageRoute(
-      builder: (_) => LinkDeviceScreen(plant: _plant),
-    ),
-  );
+  void _navigateToLinkDevice() async {
+    final linked = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LinkDeviceScreen(plant: _plant),
+      ),
+    );
 
-  if (linked == true) {
-    setState(() {
-      _plant = Plant(
-        plantId: _plant.plantId,
-        userId: _plant.userId,
-        nickname: _plant.nickname,
-        species: _plant.species,
-        esp32DeviceId: 'linked', // non-null is enough
-        waterPercentage: _plant.waterPercentage,
-        streak: _plant.streak,
-        currentHealth: _plant.currentHealth,
-        environment: _plant.environment,
-        addedAt: _plant.addedAt,
-        speciesInfo: _plant.speciesInfo,
-      );
-    });
-    _needsDashboardRefresh = true;
-    await _loadData();
+    if (linked == true) {
+      setState(() {
+        _plant = Plant(
+          plantId: _plant.plantId,
+          userId: _plant.userId,
+          nickname: _plant.nickname,
+          species: _plant.species,
+          esp32DeviceId: 'linked',
+          waterPercentage: _plant.waterPercentage,
+          streak: _plant.streak,
+          currentHealth: _plant.currentHealth,
+          environment: _plant.environment,
+          addedAt: _plant.addedAt,
+          speciesInfo: _plant.speciesInfo,
+        );
+      });
+      _needsDashboardRefresh = true;
+      await _loadData();
+    }
   }
-}
 
-  void _navigateToGallery() => Navigator.push(context, MaterialPageRoute(builder: (_) => PlantGalleryScreen(plant: _plant)));
+  void _navigateToGallery() async {
+    final newStreak = await Navigator.push<int?>(
+      context, 
+      MaterialPageRoute(builder: (_) => PlantGalleryScreen(plant: _plant)),
+    );
+    
+    // If streak was updated in gallery, store it to pass back to dashboard
+    if (newStreak != null) {
+      _updatedStreak = newStreak;
+    }
+  }
+  
   void _navigateToPlantInfo() => Navigator.push(context, MaterialPageRoute(builder: (_) => PlantInfoScreen(plant: _plant)));
-@override
-Widget build(BuildContext context) {
-  return PopScope(
-    canPop: false,
-    onPopInvokedWithResult: (didPop, result) {
-      if (!didPop) {
-        Navigator.pop(context, _needsDashboardRefresh);
-      }
-    },
-    child: Scaffold(
-      body: LeafBackground(
-        leafCount: 4,
-        child: SafeArea(
-          child: Column(
-            children: [
-              PlantDetailHeader(
-                plant: _plant,
-                onBack: () => Navigator.pop(context, _needsDashboardRefresh),
-                onInfo: _navigateToPlantInfo,
-                onGallery: _navigateToGallery,
-                onUnlink: _plant.hasDevice ? _unlinkDevice : null,
-              ),
-              Expanded(
-                child: _isLoading
-                    ? const Center(child: CircularProgressIndicator())
-                    : RefreshIndicator(
-                        onRefresh: _loadData,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            children: [
-                              PlantInfoCard(plant: _plant),
-                              const SizedBox(height: 20),
-                              QuickActionsRow(
-                                plant: _plant,
-                                isWatering: _isWatering,
-                                onWater: _triggerWatering,
-                                onGallery: _navigateToGallery,
-                                onInfo: _navigateToPlantInfo,
-                              ),
-                              const SizedBox(height: 20),
-                              if (_plant.hasDevice) ...[
-                                SensorDataCard(sensorData: _latestSensor),
-                                const SizedBox(height: 16),
-                                WaterLevelCard(
-                                  waterLevel: _waterLevel,
-                                  isRefilling: _isRefilling,
-                                  onRefill: _refillWater,
+
+  @override
+  Widget build(BuildContext context) {
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          // Return both refresh flag and streak
+          Navigator.pop(context, PlantDetailResult(
+            needsRefresh: _needsDashboardRefresh,
+            updatedStreak: _updatedStreak,
+          ));
+        }
+      },
+      child: Scaffold(
+        body: LeafBackground(
+          leafCount: 4,
+          child: SafeArea(
+            child: Column(
+              children: [
+                PlantDetailHeader(
+                  plant: _plant,
+                  onBack: () => Navigator.pop(context, PlantDetailResult(
+                    needsRefresh: _needsDashboardRefresh,
+                    updatedStreak: _updatedStreak,
+                  )),
+                  onInfo: _navigateToPlantInfo,
+                  onGallery: _navigateToGallery,
+                  onUnlink: _plant.hasDevice ? _unlinkDevice : null,
+                ),
+                Expanded(
+                  child: _isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : RefreshIndicator(
+                          onRefresh: _loadData,
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              children: [
+                                PlantInfoCard(plant: _plant),
+                                const SizedBox(height: 20),
+                                QuickActionsRow(
+                                  plant: _plant,
+                                  isWatering: _isWatering,
+                                  onWater: _triggerWatering,
+                                  onGallery: _navigateToGallery,
+                                  onInfo: _navigateToPlantInfo,
                                 ),
-                                const SizedBox(height: 16),
-                                ScheduleCard(
-                                  schedule: _schedule,
-                                  onTap: _navigateToSchedule,
-                                ),
-                              ] else ...[
-                                LinkDeviceCard(onLink: _navigateToLinkDevice),
-                                const SizedBox(height: 16),
-                                ManualCareCard(plant: _plant),
+                                const SizedBox(height: 20),
+                                if (_plant.hasDevice) ...[
+                                  SensorDataCard(sensorData: _latestSensor),
+                                  const SizedBox(height: 16),
+                                  WaterLevelCard(
+                                    waterLevel: _waterLevel,
+                                    isRefilling: _isRefilling,
+                                    onRefill: _refillWater,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ScheduleCard(
+                                    schedule: _schedule,
+                                    onTap: _navigateToSchedule,
+                                  ),
+                                ] else ...[
+                                  LinkDeviceCard(onLink: _navigateToLinkDevice),
+                                  const SizedBox(height: 16),
+                                  ManualCareCard(plant: _plant),
+                                ],
+                                const SizedBox(height: 80),
                               ],
-                              const SizedBox(height: 80),
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

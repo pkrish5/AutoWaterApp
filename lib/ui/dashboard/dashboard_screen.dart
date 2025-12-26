@@ -67,15 +67,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _navigateToPlantDetail(Plant plant) async {
-    final shouldRefresh = await Navigator.push<bool>(
-  context,
+    final result = await Navigator.push<PlantDetailResult>(
+      context,
       MaterialPageRoute(
         builder: (_) => PlantDetailScreen(plant: plant),
       ),
     );
 
-    if (shouldRefresh == true) {
-     _refreshPlants();
+    // Update streak locally if it changed (no API call needed)
+    if (result?.updatedStreak != null) {
+      setState(() => _userStreak = result!.updatedStreak!);
+    }
+
+    // Only refresh plants if needed
+    if (result?.needsRefresh == true) {
+      _refreshPlants();
     }
   }
 
@@ -87,7 +93,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              // Custom app bar with streak
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
                 child: Row(
@@ -129,7 +134,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ],
                       ),
                     ),
-                    // Streak widget at top right
                     AnimatedStreakWidget(
                       streak: _userStreak,
                       showLabel: false,
@@ -137,7 +141,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
-              // Plant grid
               Expanded(
                 child: RefreshIndicator(
                   key: _refreshKey,

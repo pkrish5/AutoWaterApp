@@ -14,6 +14,7 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -22,13 +23,13 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _obscureConfirm = true;
 
   @override
-  void dispose() { _emailController.dispose(); _passwordController.dispose(); _confirmPasswordController.dispose(); super.dispose(); }
+  void dispose() {_nameController.dispose(); _emailController.dispose(); _passwordController.dispose(); _confirmPasswordController.dispose(); super.dispose(); }
 
   void _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
     final auth = Provider.of<AuthService>(context, listen: false);
     final email = _emailController.text.trim();
-    final error = await auth.signUp(email, _passwordController.text);
+    final error = await auth.signUp(email, _passwordController.text, _nameController.text);
     if (mounted) {
       if (error == null) Navigator.push(context, MaterialPageRoute(builder: (_) => VerificationScreen(email: email)));
       else ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error), backgroundColor: AppTheme.terracotta, behavior: SnackBarBehavior.floating));
@@ -50,6 +51,23 @@ class _SignupScreenState extends State<SignupScreen> {
         const SizedBox(height: 24),
         Text('Create Account', style: GoogleFonts.comfortaa(fontSize: 28, fontWeight: FontWeight.bold, color: AppTheme.leafGreen), textAlign: TextAlign.center),
         const SizedBox(height: 36),
+        TextFormField(
+          controller: _nameController,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            labelText: 'Username',
+            prefixIcon: Icon(Icons.person_outline,
+              color: AppTheme.leafGreen.withOpacity(0.7),
+            ),
+          ),
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'Please enter your name';
+            }
+            return null;
+          },
+        ),
+const SizedBox(height: 18),
         TextFormField(controller: _emailController, keyboardType: TextInputType.emailAddress,
           decoration: InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.mail_outline, color: AppTheme.leafGreen.withOpacity(0.7))),
           validator: (v) { if (v == null || v.isEmpty || !v.contains('@')) return 'Please enter a valid email'; return null; }),

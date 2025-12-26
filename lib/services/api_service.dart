@@ -592,16 +592,15 @@ Future<Plant> getPlant(String plantId) async {
       throw Exception("Connection error: $e");
     }
   }
-
   Future<bool> sendFriendRequest({
     required String userId,
-    required String friendEmail,
+    required String friendUsername,
   }) async {
     try {
       final response = await http.post(
         Uri.parse('${AppConstants.baseUrl}/users/$userId/friend-requests'),
         headers: _headers,
-        body: jsonEncode({'friendEmail': friendEmail}),
+        body: jsonEncode({'friendUsername': friendUsername}),
       );
 
       if (response.statusCode == 200) {
@@ -614,6 +613,8 @@ Future<Plant> getPlant(String plantId) async {
       throw Exception("$e");
     }
   }
+
+
 
   Future<bool> respondToFriendRequest({
     required String userId,

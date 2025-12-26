@@ -51,25 +51,30 @@ class AuthService with ChangeNotifier {
   }
 
   // SIGN UP
-  Future<String?> signUp(String email, String password, {String? name}) async {
-    _setLoading(true);
-    final userAttributes = [
-      AttributeArg(name: 'email', value: email),
-      if (name != null) AttributeArg(name: 'name', value: name),
-    ];
-    
-    try {
-      await _userPool.signUp(email, password, userAttributes: userAttributes);
-      return null; // Success
-    } on CognitoClientException catch (e) {
-      return e.message ?? "Sign up failed";
-    } catch (e) {
-      debugPrint("Sign Up Error: $e");
-      return "Sign up failed. Please try again.";
-    } finally {
-      _setLoading(false);
-    }
+  Future<String?> signUp(String email, String password, String name) async {
+  _setLoading(true);
+
+  final userAttributes = [
+    AttributeArg(name: 'email', value: email),
+    AttributeArg(name: 'name', value: name),
+  ];
+
+  try {
+    await _userPool.signUp(
+      email,
+      password,
+      userAttributes: userAttributes,
+    );
+    return null;
+  } on CognitoClientException catch (e) {
+    return e.message ?? "Sign up failed";
+  } catch (e) {
+    debugPrint("Sign Up Error: $e");
+    return "Sign up failed. Please try again.";
+  } finally {
+    _setLoading(false);
   }
+}
 
   // CONFIRM SIGN UP
   Future<String?> confirmSignUp(String email, String code) async {

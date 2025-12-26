@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "165265814182",
+    "project_id": "autowater-29c89",
+    "storage_bucket": "autowater-29c89.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:165265814182:android:3caf0c2dd86ec8ab4efa67",
+        "android_client_info": {
+          "package_name": "com.pranavkrishnan.autowaterapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3LdphVdCt87EgKdsaCSYU4ElmhIxpt9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
