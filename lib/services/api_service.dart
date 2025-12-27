@@ -219,23 +219,24 @@ Future<void> linkDevice({
     }
   }
 // Get plant
-Future<Plant> getPlant(String plantId) async {
-  try {
-    final response = await http.get(
-      Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
-      headers: _headers,
-    );
+  Future<Plant> getPlant(String plantId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
+        headers: _headers,
+      );
 
-    if (response.statusCode == 200) {
-      return Plant.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to get plant: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        print('🌿 getPlant environment in response: ${json['environment']}');
+        return Plant.fromJson(json);
+      } else {
+        throw Exception('Failed to get plant: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Connection error: $e');
     }
-  } catch (e) {
-    throw Exception('Connection error: $e');
   }
-}
-
 
   // ==================== WATER LEVEL ====================
 
@@ -606,28 +607,29 @@ Future<Plant> getPlant(String plantId) async {
       throw Exception("$e");
     }
   }
-Future<Map<String, dynamic>> updatePlant({
-  required String plantId,
-  String? nickname,
-  String? species,
-}) async {
-  final body = <String, dynamic>{};
-  if (nickname != null) body['nickname'] = nickname;
-  if (species != null) body['species'] = species;
+    Future<void> updatePlant({
+    required String plantId,
+    String? nickname,
+    String? species,
+    Map<String, dynamic>? environment,
+    Map<String, dynamic>? location,
+  }) async {
+    final body = <String, dynamic>{};
+    if (nickname != null) body['nickname'] = nickname;
+    if (species != null) body['species'] = species;
+    if (environment != null) body['environment'] = environment;
+    if (location != null) body['location'] = location;
 
-  final response = await http.put(
-    Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
-    headers: _headers,
-    body: jsonEncode(body),
-  );
+    final response = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
 
-  if (response.statusCode == 200) {
-    return jsonDecode(response.body);
-  } else {
-    throw Exception('Failed to update plant: ${response.body}');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update plant: ${response.body}');
+    }
   }
-}
-
 
 
   Future<bool> respondToFriendRequest({
@@ -702,6 +704,7 @@ Future<Map<String, dynamic>> updatePlant({
       throw Exception("$e");
     }
   }
+
 Future<PaginatedImages> getPlantImagesPaginated(
   String plantId, {
   String? lastKey,
@@ -758,33 +761,34 @@ Future<PaginatedImages> getPlantImagesPaginated(
       throw Exception("Connection error: $e");
     }
   }
+
   Future<List<PlantProfile>> getPlantProfiles() async {
-  final response = await http.get(
-    Uri.parse('${AppConstants.baseUrl}/plant-profiles'),
-    headers: _headers,
-  );
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/plant-profiles'),
+      headers: _headers,
+    );
 
-  if (response.statusCode == 200) {
-    final List<dynamic> data = jsonDecode(response.body);
-    return data.map((json) => PlantProfile.fromJson(json)).toList();
-  } else {
-    throw Exception('Failed to fetch plant profiles');
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(response.body);
+      return data.map((json) => PlantProfile.fromJson(json)).toList();
+    } else {
+      throw Exception('Failed to fetch plant profiles');
+    }
   }
-}
 
-/// Fetch specific plant profile with full care details
-Future<PlantProfile> getPlantProfile(String species) async {
-  final encodedSpecies = Uri.encodeComponent(species);
-  final response = await http.get(
-    Uri.parse('${AppConstants.baseUrl}/plant-profiles/$encodedSpecies'),
-    headers: _headers,
-  );
 
-  if (response.statusCode == 200) {
-    return PlantProfile.fromJson(jsonDecode(response.body));
-  } else {
-    throw Exception('Failed to fetch plant profile');
+
+  Future<PlantProfile> getPlantProfile(String species) async {
+    final encodedSpecies = Uri.encodeComponent(species);
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/plant-profiles/$encodedSpecies'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return PlantProfile.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to fetch plant profile');
+    }
   }
-}
-
 }

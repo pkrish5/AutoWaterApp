@@ -143,7 +143,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
       );
 
       _needsDashboardRefresh = true;
-      _showSnackBar('Device unlinked successfully');
+      if (mounted) _showSnackBar('Device unlinked successfully');
 
       await _refreshPlant();
       await _loadData();
@@ -151,8 +151,88 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
       _showSnackBar('Failed: $e', isError: true);
     }
   }
+
+  Future<void> _deletePlant() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          const Icon(Icons.delete_forever, color: AppTheme.terracotta),
+          const SizedBox(width: 12),
+          Text('Delete Plant?', style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Are you sure you want to delete ${_plant.nickname}?', style: GoogleFonts.quicksand(color: AppTheme.soilBrown)),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.terracotta.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, color: AppTheme.terracotta, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This action cannot be undone.',
+                      style: GoogleFonts.quicksand(
+                        color: AppTheme.terracotta,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+
+      final success = await api.deletePlant(_plant.plantId, auth.userId!);
+
+      if (success && mounted) {
+        Navigator.pop(context, PlantDetailResult(needsRefresh: true, updatedStreak: _updatedStreak));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_plant.nickname} has been deleted'),
+            backgroundColor: AppTheme.leafGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      _showSnackBar('Failed to delete: $e', isError: true);
+    }
+  }
   
   void _showSnackBar(String msg, {bool isError = false}) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg), backgroundColor: isError ? AppTheme.terracotta : AppTheme.leafGreen,
       behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -208,147 +288,94 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   
   void _navigateToPlantInfo() => Navigator.push(context, MaterialPageRoute(builder: (_) => PlantInfoScreen(plant: _plant)));
 
-  // Replace your _showEditPlantDialog method with this:
+  Future<void> _showEditPlantDialog() async {
+    final nicknameController = TextEditingController(text: _plant.nickname);
+    List<PlantProfile> profiles = [];
+    String? selectedSpecies = _plant.species;
+    bool isCustom = false;
+    bool isLoading = true;
+    final customSpeciesController = TextEditingController();
 
-Future<void> _showEditPlantDialog() async {
-  final nicknameController = TextEditingController(text: _plant.nickname);
-  List<PlantProfile> profiles = [];
-  String? selectedSpecies = _plant.species;
-  bool isCustom = false;
-  bool isLoading = true;
-  final customSpeciesController = TextEditingController();
-
-  // Load plant profiles
-  try {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final api = ApiService(auth.idToken!);
-    profiles = await api.getPlantProfiles();
-    
-    // Check if current species is in the list
-    isCustom = !profiles.any((p) => p.species == _plant.species || p.commonName == _plant.species);
-    if (isCustom) {
-      customSpeciesController.text = _plant.species;
+    // Load plant profiles
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      profiles = await api.getPlantProfiles();
+      
+      // Check if current species is in the list
+      isCustom = !profiles.any((p) => p.species == _plant.species || p.commonName == _plant.species);
+      if (isCustom) {
+        customSpeciesController.text = _plant.species;
+      }
+    } catch (e) {
+      debugPrint('Failed to load profiles: $e');
     }
-  } catch (e) {
-    debugPrint('Failed to load profiles: $e');
-  }
-  isLoading = false;
+    isLoading = false;
 
-  final result = await showDialog<Map<String, String>?>(
-    context: context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setDialogState) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(children: [
-            Icon(Icons.edit, color: AppTheme.leafGreen),
-            const SizedBox(width: 12),
-            Text(
-              'Edit Plant',
-              style: GoogleFonts.comfortaa(
-                fontWeight: FontWeight.bold,
-                color: AppTheme.soilBrown,
-              ),
-            ),
-          ]),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Nickname field
-                TextField(
-                  controller: nicknameController,
-                  decoration: InputDecoration(
-                    labelText: 'Name',
-                    labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
-                    prefixIcon: Icon(Icons.local_florist, color: AppTheme.leafGreen),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppTheme.leafGreen.withValues(alpha:0.3)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: AppTheme.leafGreen, width: 2),
-                    ),
-                    filled: true,
-                    fillColor: AppTheme.leafGreen.withValues(alpha:0.05),
-                  ),
-                  style: GoogleFonts.quicksand(
-                    color: AppTheme.soilBrown,
-                    fontWeight: FontWeight.w600,
-                  ),
+    if (!mounted) return;
+
+    final result = await showDialog<Map<String, String>?>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          String? dropdownValue = isCustom ? 'custom' : (profiles.any((p) => p.species == selectedSpecies) ? selectedSpecies : null);
+          
+          return AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: Row(children: [
+              const Icon(Icons.edit, color: AppTheme.leafGreen),
+              const SizedBox(width: 12),
+              Text(
+                'Edit Plant',
+                style: GoogleFonts.comfortaa(
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.soilBrown,
                 ),
-                const SizedBox(height: 16),
-                
-                // Species dropdown
-                if (isLoading)
-                  const CircularProgressIndicator()
-                else ...[
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    initialValue: isCustom ? 'custom' : (profiles.any((p) => p.species == selectedSpecies) ? selectedSpecies : null),
+              ),
+            ]),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Nickname field
+                  TextField(
+                    controller: nicknameController,
                     decoration: InputDecoration(
-                      labelText: 'Species',
+                      labelText: 'Name',
                       labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
-                      prefixIcon: Icon(Icons.eco, color: AppTheme.mossGreen),
+                      prefixIcon: const Icon(Icons.local_florist, color: AppTheme.leafGreen),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppTheme.mossGreen.withValues(alpha:0.3)),
+                        borderSide: BorderSide(color: AppTheme.leafGreen.withValues(alpha:0.3)),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppTheme.mossGreen, width: 2),
+                        borderSide: const BorderSide(color: AppTheme.leafGreen, width: 2),
                       ),
                       filled: true,
-                      fillColor: AppTheme.mossGreen.withValues(alpha:0.05),
+                      fillColor: AppTheme.leafGreen.withValues(alpha:0.05),
                     ),
                     style: GoogleFonts.quicksand(
                       color: AppTheme.soilBrown,
                       fontWeight: FontWeight.w600,
                     ),
-                    dropdownColor: Colors.white,
-                    items: [
-                      ...profiles.map((profile) => DropdownMenuItem(
-                        value: profile.species,
-                        child: Text(profile.displayName),
-                      )),
-                      DropdownMenuItem(
-                        value: 'custom',
-                        child: Text(
-                          '+ Other...',
-                          style: TextStyle(color: AppTheme.leafGreen),
-                        ),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      setDialogState(() {
-                        if (value == 'custom') {
-                          isCustom = true;
-                          selectedSpecies = null;
-                        } else {
-                          isCustom = false;
-                          selectedSpecies = value;
-                          customSpeciesController.clear();
-                        }
-                      });
-                    },
                   ),
+                  const SizedBox(height: 16),
                   
-                  // Custom species text field
-                  if (isCustom) ...[
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: customSpeciesController,
+                  // Species dropdown
+                  if (isLoading)
+                    const CircularProgressIndicator()
+                  else ...[
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      value: dropdownValue,
                       decoration: InputDecoration(
-                        labelText: 'Enter Species Name',
+                        labelText: 'Species',
                         labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
-                        prefixIcon: Icon(Icons.edit_note, color: AppTheme.mossGreen),
+                        prefixIcon: const Icon(Icons.eco, color: AppTheme.mossGreen),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -358,79 +385,133 @@ Future<void> _showEditPlantDialog() async {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppTheme.mossGreen, width: 2),
+                          borderSide: const BorderSide(color: AppTheme.mossGreen, width: 2),
                         ),
                         filled: true,
                         fillColor: AppTheme.mossGreen.withValues(alpha:0.05),
-                        hintText: 'e.g., Cherry Tomato',
                       ),
                       style: GoogleFonts.quicksand(
                         color: AppTheme.soilBrown,
                         fontWeight: FontWeight.w600,
                       ),
+                      dropdownColor: Colors.white,
+                      items: [
+                        ...profiles.map((profile) => DropdownMenuItem(
+                          value: profile.species,
+                          child: Text(profile.displayName),
+                        )),
+                        DropdownMenuItem(
+                          value: 'custom',
+                          child: Text(
+                            '+ Other...',
+                            style: TextStyle(color: AppTheme.leafGreen),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setDialogState(() {
+                          if (value == 'custom') {
+                            isCustom = true;
+                            selectedSpecies = null;
+                          } else {
+                            isCustom = false;
+                            selectedSpecies = value;
+                            customSpeciesController.clear();
+                          }
+                        });
+                      },
                     ),
+                    
+                    // Custom species text field
+                    if (isCustom) ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: customSpeciesController,
+                        decoration: InputDecoration(
+                          labelText: 'Enter Species Name',
+                          labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
+                          prefixIcon: const Icon(Icons.edit_note, color: AppTheme.mossGreen),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(color: AppTheme.mossGreen.withValues(alpha:0.3)),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(color: AppTheme.mossGreen, width: 2),
+                          ),
+                          filled: true,
+                          fillColor: AppTheme.mossGreen.withValues(alpha:0.05),
+                          hintText: 'e.g., Cherry Tomato',
+                        ),
+                        style: GoogleFonts.quicksand(
+                          color: AppTheme.soilBrown,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ],
                 ],
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: Text(
-                'Cancel',
-                style: GoogleFonts.quicksand(
-                  color: AppTheme.soilBrown.withValues(alpha:0.7),
-                ),
               ),
             ),
-            ElevatedButton(
-              onPressed: () {
-                final species = isCustom 
-                    ? customSpeciesController.text.trim()
-                    : selectedSpecies ?? _plant.species;
-                    
-                if (species.isEmpty) {
-                  ScaffoldMessenger.of(ctx).showSnackBar(
-                    SnackBar(content: Text('Please select or enter a species')),
-                  );
-                  return;
-                }
-                
-                Navigator.pop(ctx, {
-                  'nickname': nicknameController.text.trim(),
-                  'species': species,
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.leafGreen,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.quicksand(
+                    color: AppTheme.soilBrown.withValues(alpha:0.7),
+                  ),
                 ),
               ),
-              child: Text(
-                'Save',
-                style: GoogleFonts.quicksand(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+              ElevatedButton(
+                onPressed: () {
+                  final species = isCustom 
+                      ? customSpeciesController.text.trim()
+                      : selectedSpecies ?? _plant.species;
+                      
+                  if (species.isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(content: Text('Please select or enter a species')),
+                    );
+                    return;
+                  }
+                  
+                  Navigator.pop(ctx, {
+                    'nickname': nicknameController.text.trim(),
+                    'species': species,
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.leafGreen,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Save',
+                  style: GoogleFonts.quicksand(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-            ),
-          ],
-        );
-      },
-    ),
-  );
+            ],
+          );
+        },
+      ),
+    );
 
-  if (result != null) {
-    await _updatePlant(result['nickname']!, result['species']!);
+    if (result != null) {
+      await _updatePlant(result['nickname']!, result['species']!);
+    }
   }
-}
 
-
-  Future<void> _updatePlant(String nickname, String species) async {
+  Future<void> _updatePlant(String newNickname, String newSpecies) async {
     // Check if anything changed
-    if (nickname == _plant.nickname && species == _plant.species) {
+    if (newNickname == _plant.nickname && newSpecies == _plant.species) {
       return;
     }
 
@@ -438,18 +519,18 @@ Future<void> _showEditPlantDialog() async {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
 
-      final updatedPlant = await api.updatePlant(
+      await api.updatePlant(
         plantId: _plant.plantId,
-        nickname: nickname != _plant.nickname ? nickname : null,
-        species: species != _plant.species ? species : null,
+        nickname: newNickname != _plant.nickname ? newNickname : null,
+        species: newSpecies != _plant.species ? newSpecies : null,
       );
 
       setState(() {
         _plant = Plant(
           plantId: _plant.plantId,
           userId: _plant.userId,
-          nickname: updatedPlant['nickname'] ?? nickname,
-          species: updatedPlant['species'] ?? species,
+          nickname: newNickname,
+          species: newSpecies,
           esp32DeviceId: _plant.esp32DeviceId,
           waterPercentage: _plant.waterPercentage,
           streak: _plant.streak,
@@ -496,6 +577,7 @@ Future<void> _showEditPlantDialog() async {
                   onGallery: _navigateToGallery,
                   onUnlink: _plant.hasDevice ? _unlinkDevice : null,
                   onEdit: _showEditPlantDialog,
+                  onDelete: _deletePlant,
                 ),
                 Expanded(
                   child: _isLoading

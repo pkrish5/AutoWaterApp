@@ -1,103 +1,420 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../models/plant.dart';
+import '../../models/plant_profile.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
 import '../widgets/leaf_background.dart';
 
-class PlantInfoScreen extends StatelessWidget {
+class PlantInfoScreen extends StatefulWidget {
   final Plant plant;
   const PlantInfoScreen({super.key, required this.plant});
 
   @override
-  Widget build(BuildContext context) {
-    final info = plant.speciesInfo;
-    final recommendation = plant.wateringRecommendation;
+  State<PlantInfoScreen> createState() => _PlantInfoScreenState();
+}
 
-    return Scaffold(body: LeafBackground(leafCount: 4, child: SafeArea(child: Column(children: [
-      _buildHeader(context),
-      Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _buildHeroCard(),
-        const SizedBox(height: 20),
-        _buildCareOverview(info, recommendation),
-        const SizedBox(height: 20),
-        _buildDetailedCare(info, recommendation),
-        if (info?.tips != null && info!.tips!.isNotEmpty) ...[const SizedBox(height: 20), _buildTipsCard(info.tips!)],
-        const SizedBox(height: 40),
-      ]))),
-    ]))));
+class _PlantInfoScreenState extends State<PlantInfoScreen> {
+  PlantProfile? _profile;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
   }
 
-  Widget _buildHeader(BuildContext context) => Padding(padding: const EdgeInsets.all(16), child: Row(children: [
-    IconButton(onPressed: () => Navigator.pop(context), icon: Container(padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
-      child: const Icon(Icons.arrow_back, color: AppTheme.leafGreen))),
-    const Spacer(),
-    Text('Plant Info', style: GoogleFonts.comfortaa(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.leafGreen)),
-    const Spacer(), const SizedBox(width: 48),
-  ]));
+  Future<void> _loadProfile() async {
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      final profile = await api.getPlantProfile(widget.plant.species);
+      if (mounted) {
+        setState(() {
+          _profile = profile;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load plant profile: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
-  Widget _buildHeroCard() {
+  Plant get plant => widget.plant;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: LeafBackground(
+        leafCount: 4,
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _error != null && _profile == null
+                        ? _buildFallbackContent()
+                        : _buildProfileContent(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFallbackContent() {
+    // Fallback to embedded speciesInfo if API fails
+    final info = plant.speciesInfo;
+    final recommendation = plant.wateringRecommendation;
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeroCard(info?.commonName, info?.scientificName, info?.careLevel, info?.description),
+          const SizedBox(height: 20),
+          _buildCareOverviewFallback(info, recommendation),
+          const SizedBox(height: 20),
+          _buildDetailedCareFallback(info, recommendation),
+          if (info?.tips != null && info!.tips!.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _buildTipsCard(info.tips!),
+          ],
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileContent() {
+    final care = _profile?.careProfile;
+    
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeroCard(
+            _profile?.commonName,
+            _profile?.species,
+            null, // careLevel not in PlantProfile
+            null, // description not in PlantProfile
+          ),
+          const SizedBox(height: 20),
+          if (care != null) ...[
+            _buildCareOverview(care),
+            const SizedBox(height: 20),
+            _buildDetailedCare(care),
+            const SizedBox(height: 20),
+            _buildSoilInfo(care),
+            const SizedBox(height: 20),
+            _buildGrowthInfo(care),
+          ],
+          const SizedBox(height: 40),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(16),
+    child: Row(
+      children: [
+        IconButton(
+          onPressed: () => Navigator.pop(context),
+          icon: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.arrow_back, color: AppTheme.leafGreen),
+          ),
+        ),
+        const Spacer(),
+        Text('Plant Info', style: GoogleFonts.comfortaa(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.leafGreen)),
+        const Spacer(),
+        const SizedBox(width: 48),
+      ],
+    ),
+  );
+
+  Widget _buildHeroCard(String? commonName, String? scientificName, String? careLevel, String? description) {
     String emoji = '🪴';
     switch (plant.species.toLowerCase()) {
-      case 'vine': case 'pothos': emoji = '🌿'; break;
-      case 'spiky': case 'cactus': emoji = '🌵'; break;
-      case 'tropical': case 'monstera': emoji = '🌴'; break;
+      case 'vine':
+      case 'pothos':
+      case 'epipremnum aureum':
+        emoji = '🌿';
+        break;
+      case 'spiky':
+      case 'cactus':
+        emoji = '🌵';
+        break;
+      case 'tropical':
+      case 'monstera':
+        emoji = '🌴';
+        break;
     }
 
-    return Container(padding: const EdgeInsets.all(24),
+    return Container(
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
-      child: Column(children: [
-        Text(emoji, style: const TextStyle(fontSize: 72)),
-        const SizedBox(height: 16),
-        Text(plant.speciesInfo?.commonName ?? plant.species, style: GoogleFonts.comfortaa(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-        if (plant.speciesInfo?.scientificName != null) Text(plant.speciesInfo!.scientificName, style: GoogleFonts.quicksand(fontSize: 14, fontStyle: FontStyle.italic, color: AppTheme.soilBrown.withValues(alpha:0.6))),
-        const SizedBox(height: 12),
-        if (plant.speciesInfo?.careLevel != null) Container(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          decoration: BoxDecoration(color: _careLevelColor(plant.speciesInfo!.careLevel!).withValues(alpha:0.1), borderRadius: BorderRadius.circular(20)),
-          child: Text('${plant.speciesInfo!.careLevel} Care', style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: _careLevelColor(plant.speciesInfo!.careLevel!)))),
-        if (plant.speciesInfo?.description != null) ...[const SizedBox(height: 16),
-          Text(plant.speciesInfo!.description!, style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha:0.8), height: 1.5), textAlign: TextAlign.center)],
-      ]));
+      child: Column(
+        children: [
+          Text(emoji, style: const TextStyle(fontSize: 72)),
+          const SizedBox(height: 16),
+          Text(
+            commonName ?? plant.species,
+            style: GoogleFonts.comfortaa(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.soilBrown),
+            textAlign: TextAlign.center,
+          ),
+          if (scientificName != null)
+            Text(
+              scientificName,
+              style: GoogleFonts.quicksand(fontSize: 14, fontStyle: FontStyle.italic, color: AppTheme.soilBrown.withValues(alpha: 0.6)),
+            ),
+          const SizedBox(height: 12),
+          if (careLevel != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              decoration: BoxDecoration(
+                color: _careLevelColor(careLevel).withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '$careLevel Care',
+                style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: _careLevelColor(careLevel)),
+              ),
+            ),
+          if (description != null) ...[
+            const SizedBox(height: 16),
+            Text(
+              description,
+              style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha: 0.8), height: 1.5),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Color _careLevelColor(String level) {
     switch (level.toLowerCase()) {
-      case 'easy': return AppTheme.leafGreen;
-      case 'medium': return Colors.orange;
-      case 'hard': return AppTheme.terracotta;
-      default: return AppTheme.soilBrown;
+      case 'easy':
+        return AppTheme.leafGreen;
+      case 'medium':
+        return Colors.orange;
+      case 'hard':
+        return AppTheme.terracotta;
+      default:
+        return AppTheme.soilBrown;
     }
   }
 
-  Widget _buildCareOverview(PlantSpeciesInfo? info, WateringRecommendation rec) => Row(children: [
-    Expanded(child: _CareStatCard(icon: Icons.water_drop, label: 'Water', value: 'Every ${rec.frequencyDays}d', color: AppTheme.waterBlue)),
-    const SizedBox(width: 12),
-    Expanded(child: _CareStatCard(icon: Icons.local_drink, label: 'Amount', value: '${rec.amountML}mL', color: AppTheme.leafGreen)),
-    const SizedBox(width: 12),
-    Expanded(child: _CareStatCard(icon: Icons.wb_sunny, label: 'Light', value: info?.lightRequirement?.split(' ').first ?? 'Medium', color: AppTheme.sunYellow)),
-  ]);
+  Widget _buildCareOverview(CareProfile care) => Row(
+    children: [
+      Expanded(child: _CareStatCard(icon: Icons.water_drop, label: 'Water', value: 'Every ${care.watering.frequencyDays}d', color: AppTheme.waterBlue)),
+      const SizedBox(width: 12),
+      Expanded(child: _CareStatCard(icon: Icons.local_drink, label: 'Amount', value: '${care.watering.amountML}mL', color: AppTheme.leafGreen)),
+      const SizedBox(width: 12),
+      Expanded(child: _CareStatCard(icon: Icons.wb_sunny, label: 'Light', value: _formatLightType(care.light.type), color: AppTheme.sunYellow)),
+    ],
+  );
 
-  Widget _buildDetailedCare(PlantSpeciesInfo? info, WateringRecommendation rec) => Container(padding: const EdgeInsets.all(20),
+  Widget _buildCareOverviewFallback(PlantSpeciesInfo? info, WateringRecommendation rec) => Row(
+    children: [
+      Expanded(child: _CareStatCard(icon: Icons.water_drop, label: 'Water', value: 'Every ${rec.frequencyDays}d', color: AppTheme.waterBlue)),
+      const SizedBox(width: 12),
+      Expanded(child: _CareStatCard(icon: Icons.local_drink, label: 'Amount', value: '${rec.amountML}mL', color: AppTheme.leafGreen)),
+      const SizedBox(width: 12),
+      Expanded(child: _CareStatCard(icon: Icons.wb_sunny, label: 'Light', value: info?.lightRequirement?.split(' ').first ?? 'Medium', color: AppTheme.sunYellow)),
+    ],
+  );
+
+  String _formatLightType(String type) {
+    return type.split('-').map((w) => w[0].toUpperCase() + w.substring(1)).join(' ');
+  }
+
+  Widget _buildDetailedCare(CareProfile care) => Container(
+    padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('Care Requirements', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-      const SizedBox(height: 16),
-      _CareDetailRow(icon: Icons.water_drop, title: 'Watering', value: 'Every ${rec.frequencyDays} days, ${rec.amountML}mL', color: AppTheme.waterBlue),
-      _CareDetailRow(icon: Icons.wb_sunny, title: 'Light', value: info?.lightRequirement ?? 'Medium indirect light', color: AppTheme.sunYellow),
-      _CareDetailRow(icon: Icons.thermostat, title: 'Temperature', value: info?.temperatureRange ?? '15-25°C', color: AppTheme.terracotta),
-      _CareDetailRow(icon: Icons.water, title: 'Humidity', value: info?.humidityPreference ?? 'Medium', color: AppTheme.mintGreen),
-    ]));
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Care Requirements', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+        const SizedBox(height: 16),
+        _CareDetailRow(
+          icon: Icons.water_drop,
+          title: 'Watering',
+          value: 'Every ${care.watering.frequencyDays} days, ${care.watering.amountML}mL',
+          subtitle: 'Moisture: ${care.watering.moistureMin}% - ${care.watering.moistureMax}%',
+          color: AppTheme.waterBlue,
+        ),
+        _CareDetailRow(
+          icon: Icons.wb_sunny,
+          title: 'Light',
+          value: '${_formatLightType(care.light.type)} (${care.light.hoursDaily}h/day)',
+          subtitle: 'Min ${care.light.minLux} lux',
+          color: AppTheme.sunYellow,
+        ),
+        _CareDetailRow(
+          icon: Icons.thermostat,
+          title: 'Temperature',
+          value: '${care.environment.tempMin}°C - ${care.environment.tempMax}°C',
+          color: AppTheme.terracotta,
+        ),
+        _CareDetailRow(
+          icon: Icons.water,
+          title: 'Humidity',
+          value: '${care.environment.humidityMin}% - ${care.environment.humidityMax}%',
+          color: AppTheme.mintGreen,
+        ),
+      ],
+    ),
+  );
 
-  Widget _buildTipsCard(List<String> tips) => Container(padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha:0.3), borderRadius: BorderRadius.circular(20)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [const Icon(Icons.lightbulb_outline, color: AppTheme.sunYellow), const SizedBox(width: 8),
-        Text('Care Tips', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown))]),
-      const SizedBox(height: 12),
-      ...tips.map((tip) => Padding(padding: const EdgeInsets.only(bottom: 8), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('🌿 ', style: TextStyle(fontSize: 14)),
-        Expanded(child: Text(tip, style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha:0.8), height: 1.4)))]))),
-    ]));
+  Widget _buildDetailedCareFallback(PlantSpeciesInfo? info, WateringRecommendation rec) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Care Requirements', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+        const SizedBox(height: 16),
+        _CareDetailRow(icon: Icons.water_drop, title: 'Watering', value: 'Every ${rec.frequencyDays} days, ${rec.amountML}mL', color: AppTheme.waterBlue),
+        _CareDetailRow(icon: Icons.wb_sunny, title: 'Light', value: info?.lightRequirement ?? 'Medium indirect light', color: AppTheme.sunYellow),
+        _CareDetailRow(icon: Icons.thermostat, title: 'Temperature', value: info?.temperatureRange ?? '15-25°C', color: AppTheme.terracotta),
+        _CareDetailRow(icon: Icons.water, title: 'Humidity', value: info?.humidityPreference ?? 'Medium', color: AppTheme.mintGreen),
+      ],
+    ),
+  );
+
+  Widget _buildSoilInfo(CareProfile care) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.grass, color: AppTheme.soilBrown),
+            const SizedBox(width: 8),
+            Text('Soil Requirements', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppTheme.soilBrown.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.science, size: 18, color: AppTheme.soilBrown),
+                  const SizedBox(width: 8),
+                  Text(
+                    'pH Range: ${care.soil.phMin} - ${care.soil.phMax}',
+                    style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.soilBrown),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                care.soil.type,
+                style: GoogleFonts.quicksand(fontSize: 13, color: AppTheme.soilBrown.withValues(alpha: 0.8), height: 1.4),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildGrowthInfo(CareProfile care) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(20)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.trending_up, color: AppTheme.leafGreen),
+            const SizedBox(width: 8),
+            Text('Growth Info', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _GrowthStat(
+                icon: Icons.height,
+                label: 'Avg Height',
+                value: '${care.growth.avgHeightCm} cm',
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: _GrowthStat(
+                icon: Icons.calendar_today,
+                label: 'Maturity',
+                value: '${care.growth.maturityDays} days',
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
+
+  Widget _buildTipsCard(List<String> tips) => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(20)),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.lightbulb_outline, color: AppTheme.sunYellow),
+            const SizedBox(width: 8),
+            Text('Care Tips', style: GoogleFonts.comfortaa(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ...tips.map((tip) => Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('🌿 ', style: TextStyle(fontSize: 14)),
+              Expanded(
+                child: Text(
+                  tip,
+                  style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha: 0.8), height: 1.4),
+                ),
+              ),
+            ],
+          ),
+        )),
+      ],
+    ),
+  );
 }
 
 class _CareStatCard extends StatelessWidget {
@@ -109,13 +426,18 @@ class _CareStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: color.withValues(alpha:0.1), borderRadius: BorderRadius.circular(16)),
-      child: Column(children: [
-        Icon(icon, color: color, size: 28), const SizedBox(height: 8),
-        Text(value, style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-        Text(label, style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withValues(alpha:0.6))),
-      ]));
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(16)),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(value, style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+          Text(label, style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withValues(alpha: 0.6))),
+        ],
+      ),
+    );
   }
 }
 
@@ -123,19 +445,61 @@ class _CareDetailRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
+  final String? subtitle;
   final Color color;
-  const _CareDetailRow({required this.icon, required this.title, required this.value, required this.color});
+  const _CareDetailRow({required this.icon, required this.title, required this.value, this.subtitle, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(padding: const EdgeInsets.only(bottom: 16), child: Row(children: [
-      Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withValues(alpha:0.1), borderRadius: BorderRadius.circular(12)),
-        child: Icon(icon, color: color, size: 20)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6))),
-        Text(value, style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
-      ])),
-    ]));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha: 0.6))),
+                Text(value, style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
+                if (subtitle != null)
+                  Text(subtitle!, style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withValues(alpha: 0.5))),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GrowthStat extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  const _GrowthStat({required this.icon, required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: AppTheme.leafGreen, size: 24),
+          const SizedBox(height: 6),
+          Text(value, style: GoogleFonts.quicksand(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
+          Text(label, style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withValues(alpha: 0.6))),
+        ],
+      ),
+    );
   }
 }

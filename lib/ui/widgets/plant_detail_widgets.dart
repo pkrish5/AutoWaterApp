@@ -12,10 +12,11 @@ class PlantDetailHeader extends StatelessWidget {
   final VoidCallback onInfo;
   final VoidCallback onGallery;
   final VoidCallback? onUnlink;
-  final VoidCallback? onEdit;  // ADD THIS
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const PlantDetailHeader({super.key, required this.plant, required this.onBack, 
-    required this.onInfo, required this.onGallery, this.onUnlink, this.onEdit});  // ADD onEdit
+    required this.onInfo, required this.onGallery, this.onUnlink, this.onEdit, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +36,14 @@ class PlantDetailHeader extends StatelessWidget {
           PopupMenuItem(value: 'info', child: Row(children: [const Icon(Icons.info_outline, color: AppTheme.leafGreen), const SizedBox(width: 12), Text('Plant Info', style: GoogleFonts.quicksand())])),
           PopupMenuItem(value: 'gallery', child: Row(children: [const Icon(Icons.photo_library, color: AppTheme.waterBlue), const SizedBox(width: 12), Text('Photo Gallery', style: GoogleFonts.quicksand())])),
           if (onUnlink != null) PopupMenuItem(value: 'unlink', child: Row(children: [const Icon(Icons.link_off, color: AppTheme.terracotta), const SizedBox(width: 12), Text('Unlink Device', style: GoogleFonts.quicksand())])),
+          if (onDelete != null) PopupMenuItem(value: 'delete', child: Row(children: [const Icon(Icons.delete_forever, color: AppTheme.terracotta), const SizedBox(width: 12), Text('Delete Plant', style: GoogleFonts.quicksand(color: AppTheme.terracotta))])),
         ],
         onSelected: (v) { 
           if (v == 'edit') onEdit?.call(); 
           else if (v == 'info') onInfo(); 
           else if (v == 'gallery') onGallery(); 
           else if (v == 'unlink') onUnlink?.call(); 
+          else if (v == 'delete') onDelete?.call();
         },
       ),
     ]));
@@ -64,14 +67,13 @@ class PlantInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onEdit,  // ADD THIS - tap card to edit
+      onTap: onEdit,
       child: Container(padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24),
           boxShadow: [BoxShadow(color: AppTheme.leafGreen.withValues(alpha:0.1), blurRadius: 20, offset: const Offset(0, 8))]),
         child: Column(children: [
           Text(_emoji, style: const TextStyle(fontSize: 64)),
           const SizedBox(height: 12),
-          // ADD edit icon hint next to species
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text(plant.species, style: GoogleFonts.quicksand(fontSize: 16, color: AppTheme.soilBrown.withValues(alpha:0.7))),
             if (onEdit != null) ...[

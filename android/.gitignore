@@ -25,3 +25,4 @@ key.properties
 
 # Derived data
 DerivedData/
+android/app/google-services.json

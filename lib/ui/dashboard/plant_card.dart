@@ -107,52 +107,30 @@ class PlantCard extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: AppTheme.softSage.withValues(alpha:0.5),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            plant.species,
-            style: GoogleFonts.quicksand(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.leafGreen,
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.softSage.withValues(alpha:0.5),
+              borderRadius: BorderRadius.circular(12),
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            child: Text(
+              plant.species,
+              style: GoogleFonts.quicksand(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.leafGreen,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ),
-        if (!plant.hasDevice)
-          _buildNoDeviceTag()
-        else if (plant.streak > 0)
+        if (plant.hasDevice && plant.streak > 0) ...[
+          const SizedBox(width: 6),
           _buildStreakTag(),
-      ],
-    );
-  }
-
-  Widget _buildNoDeviceTag() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTheme.terracotta.withValues(alpha:0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.link_off, size: 12, color: AppTheme.terracotta),
-          const SizedBox(width: 2),
-          Text(
-            'Manual',
-            style: GoogleFonts.quicksand(
-              fontSize: 9,
-              color: AppTheme.terracotta,
-            ),
-          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -197,45 +175,11 @@ class PlantCard extends StatelessWidget {
         ],
       );
     } else {
-      // Show watering recommendation for plants without devices
-      return _buildManualWateringIndicator();
+      // Show plant emoji only for plants without devices
+      return Center(
+        child: Text(_plantEmoji, style: const TextStyle(fontSize: 48)),
+      );
     }
-  }
-
-  Widget _buildManualWateringIndicator() {
-    final recommendation = plant.wateringRecommendation;
-    
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Text(_plantEmoji, style: const TextStyle(fontSize: 48)),
-        Positioned(
-          bottom: 0,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppTheme.waterBlue.withValues(alpha:0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.water_drop, size: 12, color: AppTheme.waterBlue),
-                const SizedBox(width: 3),
-                Text(
-                  '${recommendation.frequencyDays}d',
-                  style: GoogleFonts.quicksand(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.waterBlue,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   Widget _buildBottomStatus() {
@@ -271,20 +215,57 @@ class PlantCard extends StatelessWidget {
         ),
       );
     } else {
-      // Show approximate moisture status for manual plants
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.softSage.withValues(alpha:0.3),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          'Tap for care info',
-          style: GoogleFonts.quicksand(
-            fontSize: 11,
-            color: AppTheme.soilBrown.withValues(alpha:0.7),
+      // Show watering frequency and manual tag inline
+      final recommendation = plant.wateringRecommendation;
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.waterBlue.withValues(alpha:0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.water_drop, size: 12, color: AppTheme.waterBlue),
+                const SizedBox(width: 3),
+                Text(
+                  '${recommendation.frequencyDays}d',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.waterBlue,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: AppTheme.terracotta.withValues(alpha:0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.touch_app, size: 10, color: AppTheme.terracotta),
+                const SizedBox(width: 2),
+                Text(
+                  'Manual',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.terracotta,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       );
     }
   }
