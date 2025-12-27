@@ -215,6 +215,37 @@ class PlantLocation {
     this.sunExposure,
     this.position,
   });
+  static const Map<String, String> _roomEmojis = {
+    'Living Room': '🛋️',
+    'Kitchen': '🍳',
+    'Bedroom': '🛏️',
+    'Bathroom': '🚿',
+    'Office': '💻',
+    'Balcony': '🌅',
+    'Patio': '☀️',
+    'Back Garden': '🌳',
+    'Front Yard': '🏡',
+    'Greenhouse': '🌱',
+  };
+
+  String get displayName {
+    if (room == null || room!.trim().isEmpty) {
+      return '📍 Location not set';
+    }
+
+    final emoji = _roomEmojis[room!] ?? '📍';
+
+    final parts = <String>[
+      '$emoji $room',
+    ];
+
+    if (windowProximity != null && windowProximity!.trim().isNotEmpty) {
+      parts.add(windowProximity!);
+    }
+
+    return parts.join(' • ');
+  }
+
 
   factory PlantLocation.fromJson(Map<String, dynamic> json) {
     return PlantLocation(

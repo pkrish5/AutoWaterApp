@@ -13,10 +13,11 @@ class PlantDetailHeader extends StatelessWidget {
   final VoidCallback onGallery;
   final VoidCallback? onUnlink;
   final VoidCallback? onEdit;
+  final VoidCallback? onEditLocation; 
   final VoidCallback? onDelete;
 
   const PlantDetailHeader({super.key, required this.plant, required this.onBack, 
-    required this.onInfo, required this.onGallery, this.onUnlink, this.onEdit, this.onDelete});
+    required this.onInfo, required this.onGallery, this.onUnlink, this.onEdit, this.onEditLocation, this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -25,22 +26,63 @@ class PlantDetailHeader extends StatelessWidget {
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
         child: const Icon(Icons.arrow_back, color: AppTheme.leafGreen))),
       const Spacer(),
-      Text(plant.nickname, style: GoogleFonts.comfortaa(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.leafGreen)),
+      GestureDetector(
+        onTap: onEdit,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              plant.nickname,
+              style: GoogleFonts.comfortaa(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.leafGreen,
+              ),
+            ),
+            if (onEdit != null) ...[
+              const SizedBox(width: 6),
+              Icon(
+                Icons.edit,
+                size: 18,
+                color: AppTheme.leafGreen.withValues(alpha: 0.8),
+              ),
+            ],
+          ],
+        ),
+      ),
       const Spacer(),
       PopupMenuButton<String>(
         icon: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
           child: const Icon(Icons.more_vert, color: AppTheme.soilBrown)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         itemBuilder: (_) => [
-          if (onEdit != null) PopupMenuItem(value: 'edit', child: Row(children: [const Icon(Icons.edit, color: AppTheme.leafGreen), const SizedBox(width: 12), Text('Edit Plant', style: GoogleFonts.quicksand())])),
           PopupMenuItem(value: 'info', child: Row(children: [const Icon(Icons.info_outline, color: AppTheme.leafGreen), const SizedBox(width: 12), Text('Plant Info', style: GoogleFonts.quicksand())])),
           PopupMenuItem(value: 'gallery', child: Row(children: [const Icon(Icons.photo_library, color: AppTheme.waterBlue), const SizedBox(width: 12), Text('Photo Gallery', style: GoogleFonts.quicksand())])),
+          if (onEdit != null) PopupMenuItem(value: 'edit', child: Row(children: [const Icon(Icons.edit, color: AppTheme.leafGreen), const SizedBox(width: 12), Text('Edit Plant', style: GoogleFonts.quicksand())])),
+          PopupMenuItem(
+                value: 'edit_location',
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.place, 
+                      color: AppTheme.mossGreen,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      'Edit Location',
+                      style: GoogleFonts.quicksand(),
+                    ),
+                  ],
+                ),
+              ),
           if (onUnlink != null) PopupMenuItem(value: 'unlink', child: Row(children: [const Icon(Icons.link_off, color: AppTheme.terracotta), const SizedBox(width: 12), Text('Unlink Device', style: GoogleFonts.quicksand())])),
           if (onDelete != null) PopupMenuItem(value: 'delete', child: Row(children: [const Icon(Icons.delete_forever, color: AppTheme.terracotta), const SizedBox(width: 12), Text('Delete Plant', style: GoogleFonts.quicksand(color: AppTheme.terracotta))])),
         ],
         onSelected: (v) { 
           if (v == 'edit') onEdit?.call(); 
           else if (v == 'info') onInfo(); 
+          else if (v == 'edit_location')  onEditLocation?.call();
           else if (v == 'gallery') onGallery(); 
           else if (v == 'unlink') onUnlink?.call(); 
           else if (v == 'delete') onDelete?.call();
@@ -52,26 +94,49 @@ class PlantDetailHeader extends StatelessWidget {
 
 class PlantInfoCard extends StatelessWidget {
   final Plant plant;
-  final VoidCallback? onEdit; 
-  const PlantInfoCard({super.key, required this.plant, this.onEdit}); 
+  final VoidCallback? onEdit;
+  final VoidCallback? onEditLocation;
+
+  const PlantInfoCard({
+    super.key,
+    required this.plant,
+    this.onEdit,
+    this.onEditLocation,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onEdit,
-      child: Container(padding: const EdgeInsets.all(24),
+    return Container(padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24),
           boxShadow: [BoxShadow(color: AppTheme.leafGreen.withValues(alpha:0.1), blurRadius: 20, offset: const Offset(0, 8))]),
         child: Column(children: [
           Text(plant.emoji, style: const TextStyle(fontSize: 64)),
           const SizedBox(height: 12),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Text(plant.species, style: GoogleFonts.quicksand(fontSize: 16, color: AppTheme.soilBrown.withValues(alpha:0.7))),
-            if (onEdit != null) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.edit, size: 14, color: AppTheme.soilBrown.withValues(alpha:0.4)),
-            ],
-          ]),
+          GestureDetector(
+            onTap: onEdit,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  plant.species,
+                  style: GoogleFonts.quicksand(
+                    fontSize: 16,
+                    color: AppTheme.soilBrown.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (onEdit != null) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.edit,
+                    size: 14,
+                    color: AppTheme.soilBrown.withValues(alpha: 0.4),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
           const SizedBox(height: 8),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(plant.hasDevice ? Icons.bluetooth_connected : Icons.bluetooth_disabled, size: 16, color: plant.hasDevice ? AppTheme.leafGreen : AppTheme.terracotta),
@@ -79,8 +144,64 @@ class PlantInfoCard extends StatelessWidget {
             Text(plant.hasDevice ? 'Device: ${plant.esp32DeviceId}' : 'No device linked',
               style: GoogleFonts.quicksand(fontSize: 12, color: plant.hasDevice ? AppTheme.leafGreen : AppTheme.terracotta)),
           ]),
+          const SizedBox(height: 12),
+      if (plant.environment?.location != null)
+          GestureDetector(
+            onTap: onEditLocation,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  plant.environment!.location!.displayName,
+                  style: GoogleFonts.quicksand(
+                    fontSize: 13,
+                    color: AppTheme.mossGreen,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (onEditLocation != null) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.edit,
+                    size: 14,
+                    color: AppTheme.mossGreen.withValues(alpha: 0.6),
+                  ),
+                ],
+              ],
+            ),
+          )
+        else if (onEditLocation != null)
+          TextButton.icon(
+            onPressed: onEditLocation,
+            icon: const Icon(Icons.add_location_alt, size: 16),
+            label: const Text('Set location'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.mossGreen,
+            ),
+          ),
+
+        const SizedBox(height: 6),
+
+        if (plant.environment?.location?.sunExposure != null)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _sunEmojiFor(plant.environment!.location!.sunExposure!),
+                style: const TextStyle(fontSize: 16),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                plant.environment!.location!.sunExposure!,
+                style: GoogleFonts.quicksand(
+                  fontSize: 12,
+                  color: AppTheme.sunYellow,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ]),
-      ),
     );
   }
 }
@@ -336,5 +457,22 @@ class _CareRow extends StatelessWidget {
       Icon(icon, size: 18, color: color), const SizedBox(width: 10),
       Text(text, style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown)),
     ]));
+  }
+}
+
+String _sunEmojiFor(String exposure) {
+  switch (exposure) {
+    case 'Full sun':
+      return '☀️';
+    case 'Partial sun':
+      return '🌤️';
+    case 'Bright indirect':
+      return '🌥️';
+    case 'Low light':
+      return '🌙';
+    case 'Shade':
+      return '🌑';
+    default:
+      return '🌞';
   }
 }

@@ -14,8 +14,9 @@ import 'schedule_screen.dart';
 import 'link_device_screen.dart';
 import 'plant_info_screen.dart';
 import '../widgets/plant_detail_widgets.dart';
+import '../widgets/room_selector.dart';
 import '../../models/plant_profile.dart';
-// Result class to pass back both refresh flag and streak
+
 class PlantDetailResult {
   final bool needsRefresh;
   final int? updatedStreak;
@@ -42,23 +43,120 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   int? _updatedStreak;
   late Plant _plant;
 
-  Future<void> _refreshPlant() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final api = ApiService(auth.idToken!);
-
-    final updatedPlant = await api.getPlant(_plant.plantId);
-
-    setState(() {
-      _plant = updatedPlant;
-      _isLoading = false;
-    });
-  }
-
   @override
   void initState() {
     super.initState();
     _plant = widget.plant;
     _loadData();
+  }
+  Future<void> _deletePlant() async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          const Icon(Icons.delete_forever, color: AppTheme.terracotta),
+          const SizedBox(width: 12),
+          Text(
+            'Delete Plant?',
+            style: GoogleFonts.comfortaa(
+              fontWeight: FontWeight.bold,
+              color: AppTheme.soilBrown,
+            ),
+          ),
+        ],
+      ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Are you sure you want to delete ${_plant.nickname}?',
+            style: GoogleFonts.quicksand(color: AppTheme.soilBrown),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppTheme.terracotta.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warning_amber, color: AppTheme.terracotta, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'This action cannot be undone.',
+                    style: GoogleFonts.quicksand(
+                      color: AppTheme.terracotta,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: Text(
+            'Cancel',
+            style: GoogleFonts.quicksand(
+              color: AppTheme.soilBrown.withValues(alpha: 0.7),
+            ),
+          ),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirm != true) return;
+
+  try {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
+
+    final success = await api.deletePlant(_plant.plantId, auth.userId!);
+
+    if (success && mounted) {
+      Navigator.pop(
+        context,
+        PlantDetailResult(
+          needsRefresh: true,
+          updatedStreak: _updatedStreak,
+        ),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${_plant.nickname} has been deleted'),
+          backgroundColor: AppTheme.leafGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  } catch (e) {
+    _showSnackBar('Failed to delete: $e', isError: true);
+  }
+}
+
+  Future<void> _refreshPlant() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
+    final updatedPlant = await api.getPlant(_plant.plantId);
+    debugPrint('🌱 Refreshed plant location: ${updatedPlant.environment?.location?.room} - ${updatedPlant.environment?.location?.windowProximity}');
+    setState(() => _plant = updatedPlant);
   }
 
   Future<void> _loadData() async {
@@ -127,7 +225,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
         ]),
         content: Text('This will disconnect the sensor from ${_plant.nickname}.', style: GoogleFonts.quicksand(color: AppTheme.soilBrown)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)))),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha: 0.7)))),
           ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta), child: const Text('Unlink')),
         ],
       ),
@@ -136,103 +234,17 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
-
-      await api.unlinkDevice(
-        plantId: _plant.plantId,
-        userId: auth.userId!,
-      );
-
+      await api.unlinkDevice(plantId: _plant.plantId, userId: auth.userId!);
       _needsDashboardRefresh = true;
-      if (mounted) _showSnackBar('Device unlinked successfully');
-
+      _showSnackBar('Device unlinked successfully');
       await _refreshPlant();
       await _loadData();
     } catch (e) {
       _showSnackBar('Failed: $e', isError: true);
     }
   }
-
-  Future<void> _deletePlant() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(children: [
-          const Icon(Icons.delete_forever, color: AppTheme.terracotta),
-          const SizedBox(width: 12),
-          Text('Delete Plant?', style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-        ]),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Are you sure you want to delete ${_plant.nickname}?', style: GoogleFonts.quicksand(color: AppTheme.soilBrown)),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.terracotta.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.warning_amber, color: AppTheme.terracotta, size: 20),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'This action cannot be undone.',
-                      style: GoogleFonts.quicksand(
-                        color: AppTheme.terracotta,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7))),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm != true) return;
-
-    try {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final api = ApiService(auth.idToken!);
-
-      final success = await api.deletePlant(_plant.plantId, auth.userId!);
-
-      if (success && mounted) {
-        Navigator.pop(context, PlantDetailResult(needsRefresh: true, updatedStreak: _updatedStreak));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_plant.nickname} has been deleted'),
-            backgroundColor: AppTheme.leafGreen,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
-    } catch (e) {
-      _showSnackBar('Failed to delete: $e', isError: true);
-    }
-  }
   
   void _showSnackBar(String msg, {bool isError = false}) {
-    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg), backgroundColor: isError ? AppTheme.terracotta : AppTheme.leafGreen,
       behavior: SnackBarBehavior.floating, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -246,41 +258,16 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   }
 
   void _navigateToLinkDevice() async {
-    final linked = await Navigator.push<bool>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => LinkDeviceScreen(plant: _plant),
-      ),
-    );
-
+    final linked = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => LinkDeviceScreen(plant: _plant)));
     if (linked == true) {
-      setState(() {
-        _plant = Plant(
-          plantId: _plant.plantId,
-          userId: _plant.userId,
-          nickname: _plant.nickname,
-          species: _plant.species,
-          esp32DeviceId: 'linked',
-          waterPercentage: _plant.waterPercentage,
-          streak: _plant.streak,
-          currentHealth: _plant.currentHealth,
-          environment: _plant.environment,
-          addedAt: _plant.addedAt,
-          speciesInfo: _plant.speciesInfo,
-        );
-      });
       _needsDashboardRefresh = true;
+      await _refreshPlant();
       await _loadData();
     }
   }
 
   void _navigateToGallery() async {
-    final newStreak = await Navigator.push<int?>(
-      context, 
-      MaterialPageRoute(builder: (_) => PlantGalleryScreen(plant: _plant)),
-    );
-    
-    // If streak was updated in gallery, store it to pass back to dashboard
+    final newStreak = await Navigator.push<int?>(context, MaterialPageRoute(builder: (_) => PlantGalleryScreen(plant: _plant)));
     if (newStreak != null) {
       _updatedStreak = newStreak;
     }
@@ -288,249 +275,166 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   
   void _navigateToPlantInfo() => Navigator.push(context, MaterialPageRoute(builder: (_) => PlantInfoScreen(plant: _plant)));
 
+  // FIXED: Use await pattern instead of callback to ensure API call executes
+  void _showEditLocationDialog() async {
+    RoomLocation? currentLocation;
+    if (_plant.environment?.location != null) {
+      final loc = _plant.environment!.location!;
+      currentLocation = RoomLocation(
+        room: loc.room ?? 'Not set',
+        spot: loc.windowProximity,
+        sunExposure: loc.sunExposure,
+      );
+    }
+
+    final selectedLocation = await showModalBottomSheet<RoomLocation>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => _LocationPickerSheet(initialLocation: currentLocation),
+    );
+
+    // Call API AFTER sheet closes, using parent's valid context
+    if (selectedLocation != null && mounted) {
+      await _updatePlantLocation(selectedLocation);
+    }
+  }
+
+  // FIXED: Update local plant object directly instead of refetching
+  Future<void> _updatePlantLocation(RoomLocation location) async {
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      
+      final locationData = {
+        'room': location.room,
+        if (location.spot != null && location.spot!.isNotEmpty) 'windowProximity': location.spot,
+        if (location.sunExposure != null) 'sunExposure': location.sunExposure,
+      };
+      
+      await api.updatePlant(plantId: _plant.plantId, location: locationData);
+      
+      // Update local state directly instead of refetching
+      setState(() {
+        _plant = Plant(
+          plantId: _plant.plantId,
+          userId: _plant.userId,
+          nickname: _plant.nickname,
+          species: _plant.species,
+          esp32DeviceId: _plant.esp32DeviceId,
+          waterPercentage: _plant.waterPercentage,
+          streak: _plant.streak,
+          currentHealth: _plant.currentHealth,
+          environment: PlantEnvironment(
+            type: _plant.environment?.type ?? 'indoor',
+            location: PlantLocation(
+              room: location.room,
+              windowProximity: location.spot,
+              sunExposure: location.sunExposure,
+            ),
+          ),
+          addedAt: _plant.addedAt,
+          speciesInfo: _plant.speciesInfo,
+        );
+      });
+      
+      _needsDashboardRefresh = true;
+      _showSnackBar('Location updated to ${location.displayName}');
+    } catch (e) {
+      _showSnackBar('Failed to update location: $e', isError: true);
+    }
+  }
+
   Future<void> _showEditPlantDialog() async {
     final nicknameController = TextEditingController(text: _plant.nickname);
     List<PlantProfile> profiles = [];
     String? selectedSpecies = _plant.species;
     bool isCustom = false;
-    bool isLoading = true;
     final customSpeciesController = TextEditingController();
 
-    // Load plant profiles
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
       profiles = await api.getPlantProfiles();
-      
-      // Check if current species is in the list
       isCustom = !profiles.any((p) => p.species == _plant.species || p.commonName == _plant.species);
-      if (isCustom) {
-        customSpeciesController.text = _plant.species;
-      }
-    } catch (e) {
-      debugPrint('Failed to load profiles: $e');
-    }
-    isLoading = false;
-
-    if (!mounted) return;
+      if (isCustom) customSpeciesController.text = _plant.species;
+    } catch (e) { debugPrint('Failed to load profiles: $e'); }
 
     final result = await showDialog<Map<String, String>?>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          String? dropdownValue = isCustom ? 'custom' : (profiles.any((p) => p.species == selectedSpecies) ? selectedSpecies : null);
-          
           return AlertDialog(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Row(children: [
-              const Icon(Icons.edit, color: AppTheme.leafGreen),
+              Icon(Icons.edit, color: AppTheme.leafGreen),
               const SizedBox(width: 12),
-              Text(
-                'Edit Plant',
-                style: GoogleFonts.comfortaa(
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.soilBrown,
-                ),
-              ),
+              Text('Edit Plant', style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
             ]),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Nickname field
                   TextField(
                     controller: nicknameController,
                     decoration: InputDecoration(
                       labelText: 'Name',
-                      labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
-                      prefixIcon: const Icon(Icons.local_florist, color: AppTheme.leafGreen),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: AppTheme.leafGreen.withValues(alpha:0.3)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: AppTheme.leafGreen, width: 2),
-                      ),
-                      filled: true,
-                      fillColor: AppTheme.leafGreen.withValues(alpha:0.05),
-                    ),
-                    style: GoogleFonts.quicksand(
-                      color: AppTheme.soilBrown,
-                      fontWeight: FontWeight.w600,
+                      prefixIcon: Icon(Icons.local_florist, color: AppTheme.leafGreen),
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
-                  // Species dropdown
-                  if (isLoading)
-                    const CircularProgressIndicator()
-                  else ...[
-                    DropdownButtonFormField<String>(
-                      isExpanded: true,
-                      value: dropdownValue,
-                      decoration: InputDecoration(
-                        labelText: 'Species',
-                        labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
-                        prefixIcon: const Icon(Icons.eco, color: AppTheme.mossGreen),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide(color: AppTheme.mossGreen.withValues(alpha:0.3)),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: AppTheme.mossGreen, width: 2),
-                        ),
-                        filled: true,
-                        fillColor: AppTheme.mossGreen.withValues(alpha:0.05),
-                      ),
-                      style: GoogleFonts.quicksand(
-                        color: AppTheme.soilBrown,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      dropdownColor: Colors.white,
-                      items: [
-                        ...profiles.map((profile) => DropdownMenuItem(
-                          value: profile.species,
-                          child: Text(profile.displayName),
-                        )),
-                        DropdownMenuItem(
-                          value: 'custom',
-                          child: Text(
-                            '+ Other...',
-                            style: TextStyle(color: AppTheme.leafGreen),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setDialogState(() {
-                          if (value == 'custom') {
-                            isCustom = true;
-                            selectedSpecies = null;
-                          } else {
-                            isCustom = false;
-                            selectedSpecies = value;
-                            customSpeciesController.clear();
-                          }
-                        });
-                      },
-                    ),
-                    
-                    // Custom species text field
-                    if (isCustom) ...[
-                      const SizedBox(height: 16),
-                      TextField(
-                        controller: customSpeciesController,
-                        decoration: InputDecoration(
-                          labelText: 'Enter Species Name',
-                          labelStyle: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)),
-                          prefixIcon: const Icon(Icons.edit_note, color: AppTheme.mossGreen),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: AppTheme.mossGreen.withValues(alpha:0.3)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: AppTheme.mossGreen, width: 2),
-                          ),
-                          filled: true,
-                          fillColor: AppTheme.mossGreen.withValues(alpha:0.05),
-                          hintText: 'e.g., Cherry Tomato',
-                        ),
-                        style: GoogleFonts.quicksand(
-                          color: AppTheme.soilBrown,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    value: isCustom ? 'custom' : (profiles.any((p) => p.species == selectedSpecies) ? selectedSpecies : null),
+                    decoration: InputDecoration(labelText: 'Species', prefixIcon: Icon(Icons.eco, color: AppTheme.mossGreen)),
+                    items: [
+                      ...profiles.map((p) => DropdownMenuItem(value: p.species, child: Text(p.displayName))),
+                      DropdownMenuItem(value: 'custom', child: Text('+ Other...', style: TextStyle(color: AppTheme.leafGreen))),
                     ],
+                    onChanged: (v) => setDialogState(() {
+                      if (v == 'custom') { isCustom = true; selectedSpecies = null; }
+                      else { isCustom = false; selectedSpecies = v; customSpeciesController.clear(); }
+                    }),
+                  ),
+                  if (isCustom) ...[
+                    const SizedBox(height: 16),
+                    TextField(controller: customSpeciesController, decoration: InputDecoration(labelText: 'Enter Species Name', hintText: 'e.g., Cherry Tomato')),
                   ],
                 ],
               ),
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(
-                  'Cancel',
-                  style: GoogleFonts.quicksand(
-                    color: AppTheme.soilBrown.withValues(alpha:0.7),
-                  ),
-                ),
-              ),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
               ElevatedButton(
                 onPressed: () {
-                  final species = isCustom 
-                      ? customSpeciesController.text.trim()
-                      : selectedSpecies ?? _plant.species;
-                      
-                  if (species.isEmpty) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(content: Text('Please select or enter a species')),
-                    );
-                    return;
-                  }
-                  
-                  Navigator.pop(ctx, {
-                    'nickname': nicknameController.text.trim(),
-                    'species': species,
-                  });
+                  final species = isCustom ? customSpeciesController.text.trim() : selectedSpecies ?? _plant.species;
+                  if (species.isEmpty) return;
+                  Navigator.pop(ctx, {'nickname': nicknameController.text.trim(), 'species': species});
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.leafGreen,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Save',
-                  style: GoogleFonts.quicksand(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: Text('Save'),
               ),
             ],
           );
         },
       ),
     );
-
-    if (result != null) {
-      await _updatePlant(result['nickname']!, result['species']!);
-    }
+    if (result != null) await _updatePlant(result['nickname']!, result['species']!);
   }
 
-  Future<void> _updatePlant(String newNickname, String newSpecies) async {
-    // Check if anything changed
-    if (newNickname == _plant.nickname && newSpecies == _plant.species) {
-      return;
-    }
-
+  Future<void> _updatePlant(String nickname, String species) async {
+    if (nickname == _plant.nickname && species == _plant.species) return;
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
-
-      await api.updatePlant(
-        plantId: _plant.plantId,
-        nickname: newNickname != _plant.nickname ? newNickname : null,
-        species: newSpecies != _plant.species ? newSpecies : null,
-      );
-
+      await api.updatePlant(plantId: _plant.plantId, nickname: nickname != _plant.nickname ? nickname : null, species: species != _plant.species ? species : null);
+      
+      // Update local state directly instead of calling _refreshPlant
       setState(() {
         _plant = Plant(
           plantId: _plant.plantId,
           userId: _plant.userId,
-          nickname: newNickname,
-          species: newSpecies,
+          nickname: nickname,
+          species: species,
           esp32DeviceId: _plant.esp32DeviceId,
           waterPercentage: _plant.waterPercentage,
           streak: _plant.streak,
@@ -540,12 +444,10 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
           speciesInfo: _plant.speciesInfo,
         );
       });
-
+      
       _needsDashboardRefresh = true;
       _showSnackBar('Plant updated successfully!');
-    } catch (e) {
-      _showSnackBar('Failed to update: $e', isError: true);
-    }
+    } catch (e) { _showSnackBar('Failed to update: $e', isError: true); }
   }
 
   @override
@@ -553,13 +455,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) {
-          // Return both refresh flag and streak
-          Navigator.pop(context, PlantDetailResult(
-            needsRefresh: _needsDashboardRefresh,
-            updatedStreak: _updatedStreak,
-          ));
-        }
+        if (!didPop) Navigator.pop(context, PlantDetailResult(needsRefresh: _needsDashboardRefresh, updatedStreak: _updatedStreak));
       },
       child: Scaffold(
         body: LeafBackground(
@@ -569,14 +465,12 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
               children: [
                 PlantDetailHeader(
                   plant: _plant,
-                  onBack: () => Navigator.pop(context, PlantDetailResult(
-                    needsRefresh: _needsDashboardRefresh,
-                    updatedStreak: _updatedStreak,
-                  )),
+                  onBack: () => Navigator.pop(context, PlantDetailResult(needsRefresh: _needsDashboardRefresh, updatedStreak: _updatedStreak)),
                   onInfo: _navigateToPlantInfo,
                   onGallery: _navigateToGallery,
                   onUnlink: _plant.hasDevice ? _unlinkDevice : null,
                   onEdit: _showEditPlantDialog,
+                  onEditLocation: _showEditLocationDialog,
                   onDelete: _deletePlant,
                 ),
                 Expanded(
@@ -589,32 +483,16 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                             padding: const EdgeInsets.all(20),
                             child: Column(
                               children: [
-                                PlantInfoCard(
-                                  plant: _plant,
-                                  onEdit: _showEditPlantDialog,
-                                ),
+                                PlantInfoCard(plant: _plant, onEdit: _showEditPlantDialog, onEditLocation: _showEditLocationDialog),
                                 const SizedBox(height: 20),
-                                QuickActionsRow(
-                                  plant: _plant,
-                                  isWatering: _isWatering,
-                                  onWater: _triggerWatering,
-                                  onGallery: _navigateToGallery,
-                                  onInfo: _navigateToPlantInfo,
-                                ),
+                                QuickActionsRow(plant: _plant, isWatering: _isWatering, onWater: _triggerWatering, onGallery: _navigateToGallery, onInfo: _navigateToPlantInfo),
                                 const SizedBox(height: 20),
                                 if (_plant.hasDevice) ...[
                                   SensorDataCard(sensorData: _latestSensor),
                                   const SizedBox(height: 16),
-                                  WaterLevelCard(
-                                    waterLevel: _waterLevel,
-                                    isRefilling: _isRefilling,
-                                    onRefill: _refillWater,
-                                  ),
+                                  WaterLevelCard(waterLevel: _waterLevel, isRefilling: _isRefilling, onRefill: _refillWater),
                                   const SizedBox(height: 16),
-                                  ScheduleCard(
-                                    schedule: _schedule,
-                                    onTap: _navigateToSchedule,
-                                  ),
+                                  ScheduleCard(schedule: _schedule, onTap: _navigateToSchedule),
                                 ] else ...[
                                   LinkDeviceCard(onLink: _navigateToLinkDevice),
                                   const SizedBox(height: 16),
@@ -634,3 +512,122 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     );
   }
 }
+
+// FIXED: Removed callback, now returns RoomLocation via Navigator.pop
+class _LocationPickerSheet extends StatefulWidget {
+  final RoomLocation? initialLocation;
+  const _LocationPickerSheet({this.initialLocation});
+  @override
+  State<_LocationPickerSheet> createState() => _LocationPickerSheetState();
+}
+
+class _LocationPickerSheetState extends State<_LocationPickerSheet> {
+  String? _selectedRoom;
+  String? _selectedSpot;
+  String? _selectedSunExposure;
+  final _customRoomController = TextEditingController();
+  final _customSpotController = TextEditingController();
+  bool _isCustomRoom = false;
+
+  static const List<_RoomOption> rooms = [
+    _RoomOption(name: 'Living Room', emoji: '🛋️', spots: ['By window', 'Corner', 'Shelf', 'Coffee table']),
+    _RoomOption(name: 'Kitchen', emoji: '🍳', spots: ['Windowsill', 'Counter', 'Above cabinets', 'Herb shelf']),
+    _RoomOption(name: 'Bedroom', emoji: '🛏️', spots: ['Nightstand', 'Windowsill', 'Dresser', 'Hanging']),
+    _RoomOption(name: 'Bathroom', emoji: '🚿', spots: ['Windowsill', 'Shelf', 'Counter']),
+    _RoomOption(name: 'Office', emoji: '💻', spots: ['Desk', 'Windowsill', 'Bookshelf', 'Corner']),
+    _RoomOption(name: 'Balcony', emoji: '🌅', spots: ['Railing', 'Floor', 'Hanging', 'Table']),
+    _RoomOption(name: 'Patio', emoji: '☀️', spots: ['Sunny spot', 'Shaded area', 'Table', 'Planter box']),
+    _RoomOption(name: 'Back Garden', emoji: '🌳', spots: ['Flower bed', 'Vegetable patch', 'Along fence', 'Under tree']),
+    _RoomOption(name: 'Front Yard', emoji: '🏡', spots: ['Porch', 'Garden bed', 'Pathway', 'Planter']),
+    _RoomOption(name: 'Greenhouse', emoji: '🌱', spots: ['Bench', 'Hanging', 'Floor', 'Shelf']),
+  ];
+
+  static const List<String> sunOptions = ['Full sun', 'Partial sun', 'Bright indirect', 'Low light', 'Shade'];
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialLocation != null && widget.initialLocation!.isSet) {
+      final match = rooms.where((r) => r.name == widget.initialLocation!.room).firstOrNull;
+      if (match != null) { _selectedRoom = match.name; _selectedSpot = widget.initialLocation!.spot; }
+      else { _isCustomRoom = true; _customRoomController.text = widget.initialLocation!.room; _customSpotController.text = widget.initialLocation!.spot ?? ''; }
+      _selectedSunExposure = widget.initialLocation!.sunExposure;
+    }
+  }
+
+  @override
+  void dispose() { _customRoomController.dispose(); _customSpotController.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      child: Column(children: [
+        Container(margin: const EdgeInsets.only(top: 12), width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2))),
+        Padding(padding: const EdgeInsets.all(20), child: Row(children: [
+          Text('Set Plant Location', style: GoogleFonts.comfortaa(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.leafGreen)),
+          const Spacer(),
+          TextButton(onPressed: () => Navigator.pop(context, RoomLocation(room: 'Not set')), child: Text('Clear', style: GoogleFonts.quicksand(color: AppTheme.terracotta))),
+        ])),
+        Expanded(child: SingleChildScrollView(padding: const EdgeInsets.symmetric(horizontal: 20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Room', style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            ...rooms.map((r) => _buildRoomChip(r)),
+            _buildCustomChip(),
+          ]),
+          if (_isCustomRoom) ...[const SizedBox(height: 16), TextField(controller: _customRoomController, decoration: InputDecoration(labelText: 'Custom Room', hintText: 'e.g., Sunroom')), const SizedBox(height: 12), TextField(controller: _customSpotController, decoration: InputDecoration(labelText: 'Spot (optional)', hintText: 'e.g., Near window'))],
+          if (_selectedRoom != null && !_isCustomRoom) ...[const SizedBox(height: 24), Text('Spot in $_selectedRoom', style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)), const SizedBox(height: 12), Wrap(spacing: 8, runSpacing: 8, children: rooms.firstWhere((r) => r.name == _selectedRoom).spots.map((s) => _buildSpotChip(s)).toList())],
+          const SizedBox(height: 24),
+          Text('Sun Exposure', style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.soilBrown)),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: sunOptions.map((s) => _buildSunChip(s)).toList()),
+          const SizedBox(height: 32),
+        ]))),
+        Padding(padding: const EdgeInsets.all(20), child: SizedBox(width: double.infinity, height: 56, child: ElevatedButton(onPressed: _canSave() ? _save : null, child: Text('Save Location', style: GoogleFonts.quicksand(fontSize: 18, fontWeight: FontWeight.w600))))),
+      ]),
+    );
+  }
+
+  Widget _buildRoomChip(_RoomOption r) {
+    final sel = _selectedRoom == r.name && !_isCustomRoom;
+    return GestureDetector(onTap: () => setState(() { _selectedRoom = r.name; _selectedSpot = null; _isCustomRoom = false; }),
+      child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), decoration: BoxDecoration(color: sel ? AppTheme.leafGreen : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: sel ? AppTheme.leafGreen : AppTheme.softSage)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [Text(r.emoji, style: const TextStyle(fontSize: 16)), const SizedBox(width: 6), Text(r.name, style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppTheme.soilBrown))])));
+  }
+
+  Widget _buildCustomChip() {
+    return GestureDetector(onTap: () => setState(() { _isCustomRoom = true; _selectedRoom = null; _selectedSpot = null; }),
+      child: Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), decoration: BoxDecoration(color: _isCustomRoom ? AppTheme.mossGreen : Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: _isCustomRoom ? AppTheme.mossGreen : AppTheme.softSage)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.add_circle_outline, size: 16, color: _isCustomRoom ? Colors.white : AppTheme.mossGreen), const SizedBox(width: 6), Text('Other', style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: _isCustomRoom ? Colors.white : AppTheme.mossGreen))])));
+  }
+
+  Widget _buildSpotChip(String s) {
+    final sel = _selectedSpot == s;
+    return GestureDetector(onTap: () => setState(() => _selectedSpot = s),
+      child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: sel ? AppTheme.waterBlue : AppTheme.waterBlue.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+        child: Text(s, style: GoogleFonts.quicksand(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppTheme.waterBlue))));
+  }
+
+  Widget _buildSunChip(String s) {
+    final sel = _selectedSunExposure == s;
+    return GestureDetector(onTap: () => setState(() => _selectedSunExposure = s),
+      child: Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8), decoration: BoxDecoration(color: sel ? AppTheme.sunYellow : AppTheme.sunYellow.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
+        child: Text(s, style: GoogleFonts.quicksand(fontSize: 13, fontWeight: FontWeight.w600, color: sel ? Colors.white : AppTheme.soilBrown.withValues(alpha: 0.8)))));
+  }
+
+  bool _canSave() => _isCustomRoom ? _customRoomController.text.trim().isNotEmpty : _selectedRoom != null;
+
+  // FIXED: Return value instead of calling callback
+  void _save() {
+    Navigator.pop(context, RoomLocation(
+      room: _isCustomRoom ? _customRoomController.text.trim() : _selectedRoom!,
+      spot: _isCustomRoom ? _customSpotController.text.trim() : _selectedSpot,
+      sunExposure: _selectedSunExposure,
+    ));
+  }
+  
+}
+
+class _RoomOption { final String name; final String emoji; final List<String> spots; const _RoomOption({required this.name, required this.emoji, required this.spots}); }
