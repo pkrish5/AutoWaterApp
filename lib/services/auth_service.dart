@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
+import 'timezone_service.dart';
 
 class AuthService with ChangeNotifier {
   final _userPool = CognitoUserPool(
@@ -15,6 +16,7 @@ class AuthService with ChangeNotifier {
   String? idToken;
   String? userId;
   String? userEmail;
+  String? userTimezone; // Add timezone field
   bool _isLoading = false;
 
   bool get isLoading => _isLoading;
@@ -22,10 +24,43 @@ class AuthService with ChangeNotifier {
   final _storage = const FlutterSecureStorage();
   static const _keyEmail = 'cognito_email';
   static const _keyRefreshToken = 'cognito_refresh_token';
+  static const _keyTimezone = 'user_timezone';
   bool _isInitialized = false;
   bool get isInitialized => _isInitialized;
+  
+  final TimezoneService _timezoneService = TimezoneService();
+
   void _setLoading(bool value) {
     _isLoading = value;
+    notifyListeners();
+  }
+
+  /// Get detected or stored timezone
+  Future<String?> getTimezone() async {
+    // First check if we have it cached
+    if (userTimezone != null) return userTimezone;
+    
+    // Check secure storage
+    final stored = await _storage.read(key: _keyTimezone);
+    if (stored != null) {
+      userTimezone = stored;
+      return stored;
+    }
+    
+    // Detect from device
+    final detected = await _timezoneService.getDeviceTimezone();
+    if (detected != null) {
+      await _storage.write(key: _keyTimezone, value: detected);
+      userTimezone = detected;
+    }
+    
+    return detected;
+  }
+
+  /// Update user's timezone
+  Future<void> setTimezone(String timezone) async {
+    await _storage.write(key: _keyTimezone, value: timezone);
+    userTimezone = timezone;
     notifyListeners();
   }
 
@@ -40,6 +75,10 @@ class AuthService with ChangeNotifier {
       idToken = _session?.getIdToken().getJwtToken();
       userId = _session?.getIdToken().getSub();
       userEmail = email;
+      
+      // Detect and store timezone on login
+      await getTimezone();
+      
       notifyListeners();
       await _storage.write(key: _keyEmail, value: email);
       await _storage.write(key: _keyRefreshToken, value: _session!.getRefreshToken()?.getToken());
@@ -59,31 +98,53 @@ class AuthService with ChangeNotifier {
     }
   }
 
-  // SIGN UP
-  Future<String?> signUp(String email, String password, String name) async {
-  _setLoading(true);
+  // SIGN UP - Now returns timezone for API call
+  Future<Map<String, dynamic>> signUpWithTimezone(String email, String password, String name) async {
+    _setLoading(true);
 
-  final userAttributes = [
-    AttributeArg(name: 'email', value: email),
-    AttributeArg(name: 'name', value: name),
-  ];
+    final userAttributes = [
+      AttributeArg(name: 'email', value: email),
+      AttributeArg(name: 'name', value: name),
+    ];
 
-  try {
-    await _userPool.signUp(
-      email,
-      password,
-      userAttributes: userAttributes,
-    );
-    return null;
-  } on CognitoClientException catch (e) {
-    return e.message ?? "Sign up failed";
-  } catch (e) {
-    debugPrint("Sign Up Error: $e");
-    return "Sign up failed. Please try again.";
-  } finally {
-    _setLoading(false);
+    try {
+      await _userPool.signUp(
+        email,
+        password,
+        userAttributes: userAttributes,
+      );
+      
+      // Detect timezone during signup
+      final timezone = await _timezoneService.getDeviceTimezone();
+      
+      return {
+        'success': true,
+        'timezone': timezone,
+      };
+    } on CognitoClientException catch (e) {
+      return {
+        'success': false,
+        'error': e.message ?? "Sign up failed",
+      };
+    } catch (e) {
+      debugPrint("Sign Up Error: $e");
+      return {
+        'success': false,
+        'error': "Sign up failed. Please try again.",
+      };
+    } finally {
+      _setLoading(false);
+    }
   }
-}
+
+  // Keep original signUp for backward compatibility
+  Future<String?> signUp(String email, String password, String name) async {
+    final result = await signUpWithTimezone(email, password, name);
+    if (result['success'] == true) {
+      return null;
+    }
+    return result['error'] as String?;
+  }
 
   // CONFIRM SIGN UP
   Future<String?> confirmSignUp(String email, String code) async {
@@ -208,16 +269,17 @@ class AuthService with ChangeNotifier {
   
   // LOGOUT
   Future<void> logout() async {
-  await _storage.deleteAll(); 
-  
-  _cognitoUser?.signOut();
-  _cognitoUser = null;
-  _session = null;
-  idToken = null;
-  userId = null;
-  userEmail = null;
-  
-  notifyListeners();
+    await _storage.deleteAll(); 
+    
+    _cognitoUser?.signOut();
+    _cognitoUser = null;
+    _session = null;
+    idToken = null;
+    userId = null;
+    userEmail = null;
+    userTimezone = null;
+    
+    notifyListeners();
   }
 
   // DELETE ACCOUNT
@@ -239,25 +301,33 @@ class AuthService with ChangeNotifier {
     } finally {
       _setLoading(false);
     }
-    
   }
-Future<void> tryRestoreSession() async {
-  if (_isInitialized) return;
-  try {
-    final email = await _storage.read(key: _keyEmail);
-    final refreshTokenStr = await _storage.read(key: _keyRefreshToken);
-    if (email != null && refreshTokenStr != null) {
-      _cognitoUser = CognitoUser(email, _userPool);
-      _session = await _cognitoUser!.refreshSession(CognitoRefreshToken(refreshTokenStr));
-      idToken = _session?.getIdToken().getJwtToken();
-      userId = _session?.getIdToken().getSub();
-      userEmail = email;
+
+  Future<void> tryRestoreSession() async {
+    if (_isInitialized) return;
+    try {
+      final email = await _storage.read(key: _keyEmail);
+      final refreshTokenStr = await _storage.read(key: _keyRefreshToken);
+      final storedTimezone = await _storage.read(key: _keyTimezone);
+      
+      if (email != null && refreshTokenStr != null) {
+        _cognitoUser = CognitoUser(email, _userPool);
+        _session = await _cognitoUser!.refreshSession(CognitoRefreshToken(refreshTokenStr));
+        idToken = _session?.getIdToken().getJwtToken();
+        userId = _session?.getIdToken().getSub();
+        userEmail = email;
+        userTimezone = storedTimezone;
+        
+        // If no stored timezone, detect it
+        if (userTimezone == null) {
+          await getTimezone();
+        }
+      }
+    } catch (e) {
+      await _storage.deleteAll();
+    } finally {
+      _isInitialized = true;
+      notifyListeners();
     }
-  } catch (e) {
-    await _storage.deleteAll();
-  } finally {
-    _isInitialized = true;
-    notifyListeners();
   }
-}
 }

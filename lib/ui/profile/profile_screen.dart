@@ -5,9 +5,11 @@ import '../../core/theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
 import '../../services/location_service.dart';
+import '../../services/timezone_service.dart';
 import '../../models/user.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/streak_widget.dart';
+import '../widgets/timezone_picker.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -20,12 +22,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   User? _user;
   bool _isLoading = true;
   bool _isEditingUsername = false;
+
   final _usernameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadProfile();
+    _loadProfileAndCheckTimezone();
   }
 
   @override
@@ -34,8 +37,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.dispose();
   }
 
-  Future<void> _loadProfile() async {
+  Future<void> _loadProfileAndCheckTimezone() async {
+    await _loadProfile();
+    _checkAndSetTimezone();
+  }
+
+  /// Only runs once if user doesn't have a timezone set
+  Future<void> _checkAndSetTimezone() async {
+    // Skip if user already has a timezone
+    if (_user?.timezone != null && _user!.timezone!.isNotEmpty) {
+      return;
+    }
+
+    // Try to detect timezone
+    final detected = await TimezoneService().getDeviceTimezone();
     
+    if (!mounted) return;
+
+    if (detected != null) {
+      // Auto-save detected timezone silently
+      await _saveTimezone(detected, showSnackbar: false);
+    } else {
+      // Detection failed - prompt user to select manually
+      final selected = await TimezonePickerDialog.showRequired(context);
+      if (selected != null) {
+        await _saveTimezone(selected);
+      }
+    }
+  }
+
+  Future<void> _saveTimezone(String timezone, {bool showSnackbar = true}) async {
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+
+      await api.updateUserProfile(
+        userId: auth.userId!,
+        timezone: timezone,
+      );
+
+      // Update local cache
+      await auth.setTimezone(timezone);
+
+      if (showSnackbar) {
+        _showSnackBar('Timezone updated!');
+      }
+
+      // Reload profile to reflect change
+      await _loadProfile();
+    } catch (e) {
+      debugPrint('Failed to save timezone: $e');
+      if (showSnackbar) {
+        _showSnackBar('Failed to save timezone', isError: true);
+      }
+    }
+  }
+
+  Future<void> _updateTimezone() async {
+    final newTimezone = await TimezonePickerDialog.show(
+      context,
+      currentTimezone: _user?.timezone,
+    );
+
+    if (newTimezone != null) {
+      await _saveTimezone(newTimezone);
+    }
+  }
+
+  Future<void> _loadProfile() async {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
@@ -138,6 +207,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           const SizedBox(height: 20),
           _buildLocationCard(),
           const SizedBox(height: 20),
+           _buildTimezoneCard(),  
+          const SizedBox(height: 20),
           _buildSettingsCard(),
           const SizedBox(height: 20),
           _buildDangerZone(),
@@ -199,6 +270,74 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ]),
       if (_user?.location?.timezone != null) Text('Timezone: ${_user!.location!.timezone}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.5))),
     ]));
+
+  Widget _buildTimezoneCard() => Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.schedule, color: AppTheme.leafGreen),
+            const SizedBox(width: 8),
+            Text(
+              'Timezone',
+              style: GoogleFonts.comfortaa(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.soilBrown,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _user?.timezoneDisplay ?? 'Not set',
+                    style: GoogleFonts.quicksand(
+                      fontSize: 14,
+                      color: AppTheme.soilBrown.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  if (_user?.timezone != null)
+                    Text(
+                      _user!.timezone!,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 12,
+                        color: AppTheme.soilBrown.withValues(alpha: 0.5),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _updateTimezone,
+              icon: const Icon(Icons.edit, size: 18),
+              label: Text('Change', style: GoogleFonts.quicksand()),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Used for streak calculations and notifications',
+          style: GoogleFonts.quicksand(
+            fontSize: 11,
+            color: AppTheme.soilBrown.withValues(alpha: 0.5),
+            fontStyle: FontStyle.italic,
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _buildSettingsCard() => Container(padding: const EdgeInsets.all(8),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),

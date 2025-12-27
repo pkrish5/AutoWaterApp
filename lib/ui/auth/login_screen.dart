@@ -56,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
               boxShadow: [BoxShadow(color: AppTheme.leafGreen.withValues(alpha:0.2), blurRadius: 30, offset: const Offset(0, 10))]),
             child: const Text('🪴', style: TextStyle(fontSize: 56)))),
           const SizedBox(height: 28),
-          Text('Rootwise', style: GoogleFonts.comfortaa(fontSize: 34, fontWeight: FontWeight.bold, color: AppTheme.leafGreen), textAlign: TextAlign.center),
+          Text('buddi', style: GoogleFonts.comfortaa(fontSize: 34, fontWeight: FontWeight.bold, color: AppTheme.leafGreen), textAlign: TextAlign.center),
           const SizedBox(height: 8),
           Text('Your Digital Garden Awaits', style: GoogleFonts.quicksand(fontSize: 16, color: AppTheme.soilBrown.withValues(alpha:0.7)), textAlign: TextAlign.center),
           const SizedBox(height: 48),

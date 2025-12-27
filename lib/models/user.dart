@@ -10,6 +10,7 @@ class User {
   final int? lastActive;
   final bool isPublicProfile;
   final String? profileImageUrl;
+  final String? timezone;
 
   User({
     required this.userId,
@@ -23,6 +24,7 @@ class User {
     this.lastActive,
     this.isPublicProfile = false,
     this.profileImageUrl,
+    this.timezone,
   });
 
   factory User.fromJson(Map<String, dynamic> json) {
@@ -47,11 +49,21 @@ class User {
       lastActive: json['lastActive'],
       isPublicProfile: json['isPublicProfile'] ?? false,
       profileImageUrl: json['profileImageUrl'],
+       timezone: json['timezone'],  
     );
   }
 
   String get displayName => username ?? email.split('@').first;
-  
+  String get timezoneDisplay {
+    if (timezone == null) return 'Not set';
+    // Convert "America/Chicago" to "Chicago (America)"
+    final parts = timezone!.split('/');
+    if (parts.length == 2) {
+      final city = parts[1].replaceAll('_', ' ');
+      return '$city (${parts[0]})';
+    }
+    return timezone!;
+  }
   String get memberSince {
     if (createdAt == null) return 'Unknown';
     final date = DateTime.fromMillisecondsSinceEpoch(createdAt!);

@@ -384,34 +384,31 @@ Future<void> linkDevice({
     }
   }
 
-  Future<User> updateUserProfile({
-    required String userId,
-    String? name,
-    bool? isPublicProfile,
-  }) async {
-    try {
-      final body = {
-        if (name != null) 'name': name,
-        if (isPublicProfile != null) 'isPublicProfile': isPublicProfile,
-      };
+ Future<User> updateUserProfile({
+  required String userId,
+  String? name,
+  bool? isPublicProfile,
+  String? location,
+  String? timezone,  // Add this parameter
+}) async {
+  final body = <String, dynamic>{};
+  if (name != null) body['name'] = name;
+  if (isPublicProfile != null) body['isPublicProfile'] = isPublicProfile;
+  if (location != null) body['location'] = location;
+  if (timezone != null) body['timezone'] = timezone;  // Add this
 
-      final response = await http.put(
-        Uri.parse('${AppConstants.baseUrl}/users/$userId/profile'),
-        headers: _headers,
-        body: jsonEncode(body),
-      );
+  final response = await http.put(
+    Uri.parse('${AppConstants.baseUrl}/users/$userId/profile'),
+    headers: _headers,
+    body: jsonEncode(body),
+  );
 
-      if (response.statusCode == 200) {
-        return User.fromJson(jsonDecode(response.body));
-      } else {
-        final error = jsonDecode(response.body);
-        throw Exception(error['error'] ?? "Failed to update profile");
-      }
-    } catch (e) {
-      throw Exception("$e");
-    }
+  if (response.statusCode != 200) {
+    throw Exception('Failed to update profile');
   }
 
+  return User.fromJson(jsonDecode(response.body));
+}
   Future<bool> updateUserLocation({
     required String userId,
     required UserLocation location,
@@ -793,4 +790,50 @@ Future<PaginatedImages> getPlantImagesPaginated(
       throw Exception('Failed to fetch plant profile');
     }
   }
+  Future<bool> updateUserTimezone({
+  required String userId,
+  required String timezone,
+}) async {
+  try {
+    final response = await http.put(
+      Uri.parse('${AppConstants.baseUrl}/users/$userId/timezone'),
+      headers: _headers,
+      body: jsonEncode({'timezone': timezone}),
+    );
+
+    return response.statusCode == 200;
+  } catch (e) {
+    throw Exception("Failed to update timezone: $e");
+  }
+}
+
+/// Create user profile with timezone (call after email verification)
+Future<void> initializeUserProfile({
+  required String userId,
+  required String email,
+  required String username,
+  String? timezone,
+}) async {
+  try {
+    final body = {
+      'email': email,
+      'username': username,
+      if (timezone != null) 'timezone': timezone,
+    };
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/users/$userId/initialize'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? "Failed to initialize profile");
+    }
+  } catch (e) {
+    throw Exception("$e");
+  }
+}
+
 }
