@@ -15,6 +15,7 @@ import 'link_device_screen.dart';
 import 'plant_info_screen.dart';
 import '../widgets/plant_detail_widgets.dart';
 import '../widgets/room_selector.dart';
+import '../widgets/searchable_species_selector.dart';
 import '../../models/plant_profile.dart';
 
 class PlantDetailResult {
@@ -43,7 +44,6 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   bool _isEditDialogOpen = false;
   bool _isLocationSheetOpen = false;
 
-
   int? _updatedStreak;
   
   late Plant _plant;
@@ -54,107 +54,108 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     _plant = widget.plant;
     _loadData();
   }
+
   Future<void> _deletePlant() async {
-  final confirm = await showDialog<bool>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      title: Row(
-        children: [
-          const Icon(Icons.delete_forever, color: AppTheme.terracotta),
-          const SizedBox(width: 12),
-          Text(
-            'Delete Plant?',
-            style: GoogleFonts.comfortaa(
-              fontWeight: FontWeight.bold,
-              color: AppTheme.soilBrown,
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Icon(Icons.delete_forever, color: AppTheme.terracotta),
+            const SizedBox(width: 12),
+            Text(
+              'Delete Plant?',
+              style: GoogleFonts.comfortaa(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.soilBrown,
+              ),
             ),
-          ),
-        ],
-      ),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Are you sure you want to delete ${_plant.nickname}?',
-            style: GoogleFonts.quicksand(color: AppTheme.soilBrown),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppTheme.terracotta.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Are you sure you want to delete ${_plant.nickname}?',
+              style: GoogleFonts.quicksand(color: AppTheme.soilBrown),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.warning_amber, color: AppTheme.terracotta, size: 20),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'This action cannot be undone.',
-                    style: GoogleFonts.quicksand(
-                      color: AppTheme.terracotta,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.terracotta.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber, color: AppTheme.terracotta, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This action cannot be undone.',
+                      style: GoogleFonts.quicksand(
+                        color: AppTheme.terracotta,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.quicksand(
+                color: AppTheme.soilBrown.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta),
+            child: const Text('Delete'),
           ),
         ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(ctx, false),
-          child: Text(
-            'Cancel',
-            style: GoogleFonts.quicksand(
-              color: AppTheme.soilBrown.withValues(alpha: 0.7),
-            ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+
+      final success = await api.deletePlant(_plant.plantId, auth.userId!);
+
+      if (success && mounted) {
+        Navigator.pop(
+          context,
+          PlantDetailResult(
+            needsRefresh: true,
+            updatedStreak: _updatedStreak,
           ),
-        ),
-        ElevatedButton(
-          onPressed: () => Navigator.pop(ctx, true),
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta),
-          child: const Text('Delete'),
-        ),
-      ],
-    ),
-  );
+        );
 
-  if (confirm != true) return;
-
-  try {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final api = ApiService(auth.idToken!);
-
-    final success = await api.deletePlant(_plant.plantId, auth.userId!);
-
-    if (success && mounted) {
-      Navigator.pop(
-        context,
-        PlantDetailResult(
-          needsRefresh: true,
-          updatedStreak: _updatedStreak,
-        ),
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${_plant.nickname} has been deleted'),
-          backgroundColor: AppTheme.leafGreen,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${_plant.nickname} has been deleted'),
+            backgroundColor: AppTheme.leafGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      _showSnackBar('Failed to delete: $e', isError: true);
     }
-  } catch (e) {
-    _showSnackBar('Failed to delete: $e', isError: true);
   }
-}
 
   Future<void> _refreshPlant() async {
     final auth = Provider.of<AuthService>(context, listen: false);
@@ -280,39 +281,36 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   
   void _navigateToPlantInfo() => Navigator.push(context, MaterialPageRoute(builder: (_) => PlantInfoScreen(plant: _plant)));
 
-  // FIXED: Use await pattern instead of callback to ensure API call executes
   void _showEditLocationDialog() async {
     if (_isLocationSheetOpen) return;
     _isLocationSheetOpen = true;
 
     try {
-    RoomLocation? currentLocation;
-    if (_plant.environment?.location != null) {
-      final loc = _plant.environment!.location!;
-      currentLocation = RoomLocation(
-        room: loc.room ?? 'Not set',
-        spot: loc.windowProximity,
-        sunExposure: loc.sunExposure,
+      RoomLocation? currentLocation;
+      if (_plant.environment?.location != null) {
+        final loc = _plant.environment!.location!;
+        currentLocation = RoomLocation(
+          room: loc.room ?? 'Not set',
+          spot: loc.windowProximity,
+          sunExposure: loc.sunExposure,
+        );
+      }
+
+      final selectedLocation = await showModalBottomSheet<RoomLocation>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _LocationPickerSheet(initialLocation: currentLocation),
       );
-    }
 
-    final selectedLocation = await showModalBottomSheet<RoomLocation>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => _LocationPickerSheet(initialLocation: currentLocation),
-    );
-
-    // Call API AFTER sheet closes, using parent's valid context
-    if (selectedLocation != null && mounted) {
-      await _updatePlantLocation(selectedLocation);
+      if (selectedLocation != null && mounted) {
+        await _updatePlantLocation(selectedLocation);
+      }
+    } finally {
+      _isLocationSheetOpen = false;
     }
-  } finally {
-    _isLocationSheetOpen = false;
   }
-}
 
-  // FIXED: Update local plant object directly instead of refetching
   Future<void> _updatePlantLocation(RoomLocation location) async {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
@@ -326,7 +324,6 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
       
       await api.updatePlant(plantId: _plant.plantId, location: locationData);
       
-      // Update local state directly instead of refetching
       setState(() {
         _plant = Plant(
           plantId: _plant.plantId,
@@ -357,97 +354,44 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     }
   }
 
+  // NEW: Uses bottom sheet with searchable species selector
   Future<void> _showEditPlantDialog() async {
     if (_isEditDialogOpen) return;
     _isEditDialogOpen = true;
-  try {
-    final nicknameController = TextEditingController(text: _plant.nickname);
-    List<PlantProfile> profiles = [];
-    String? selectedSpecies = _plant.species;
-    bool isCustom = false;
-    final customSpeciesController = TextEditingController();
 
     try {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final api = ApiService(auth.idToken!);
-      profiles = await api.getPlantProfiles();
-      isCustom = !profiles.any((p) => p.species == _plant.species || p.commonName == _plant.species);
-      if (isCustom) customSpeciesController.text = _plant.species;
-    } catch (e) { debugPrint('Failed to load profiles: $e'); }
+      final result = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (ctx) => _EditPlantSheet(plant: _plant),
+      );
 
-    final result = await showDialog<Map<String, String>?>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialogState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Row(children: [
-              Icon(Icons.edit, color: AppTheme.leafGreen),
-              const SizedBox(width: 12),
-              Text('Edit Plant', style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-            ]),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: nicknameController,
-                    decoration: InputDecoration(
-                      labelText: 'Name',
-                      prefixIcon: Icon(Icons.local_florist, color: AppTheme.leafGreen),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    isExpanded: true,
-                    value: isCustom ? 'custom' : (profiles.any((p) => p.species == selectedSpecies) ? selectedSpecies : null),
-                    decoration: InputDecoration(labelText: 'Species', prefixIcon: Icon(Icons.eco, color: AppTheme.mossGreen)),
-                    items: [
-                      ...profiles.map((p) => DropdownMenuItem(value: p.species, child: Text(p.displayName))),
-                      DropdownMenuItem(value: 'custom', child: Text('+ Other...', style: TextStyle(color: AppTheme.leafGreen))),
-                    ],
-                    onChanged: (v) => setDialogState(() {
-                      if (v == 'custom') { isCustom = true; selectedSpecies = null; }
-                      else { isCustom = false; selectedSpecies = v; customSpeciesController.clear(); }
-                    }),
-                  ),
-                  if (isCustom) ...[
-                    const SizedBox(height: 16),
-                    TextField(controller: customSpeciesController, decoration: InputDecoration(labelText: 'Enter Species Name', hintText: 'e.g., Cherry Tomato')),
-                  ],
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Cancel')),
-              ElevatedButton(
-                onPressed: () {
-                  final species = isCustom ? customSpeciesController.text.trim() : selectedSpecies ?? _plant.species;
-                  if (species.isEmpty) return;
-                  Navigator.pop(ctx, {'nickname': nicknameController.text.trim(), 'species': species});
-                },
-                child: Text('Save'),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-    if (result != null) await _updatePlant(result['nickname']!, result['species']!);
+      if (result != null && mounted) {
+        await _updatePlant(
+          result['nickname'] as String,
+          result['species'] as String,
+          result['speciesInfo'] as Map<String, dynamic>?,
+        );
+      }
+    } finally {
+      _isEditDialogOpen = false;
+    }
   }
-  finally {
-    _isEditDialogOpen = false;
-  }
-}
 
-  Future<void> _updatePlant(String nickname, String species) async {
+  Future<void> _updatePlant(String nickname, String species, Map<String, dynamic>? speciesInfo) async {
     if (nickname == _plant.nickname && species == _plant.species) return;
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
-      await api.updatePlant(plantId: _plant.plantId, nickname: nickname != _plant.nickname ? nickname : null, species: species != _plant.species ? species : null);
+      await api.updatePlant(
+        plantId: _plant.plantId,
+        nickname: nickname != _plant.nickname ? nickname : null,
+        species: species != _plant.species ? species : null,
+        speciesInfo: speciesInfo,
+      );
       
-      // Update local state directly instead of calling _refreshPlant
+      // Update local state directly
       setState(() {
         _plant = Plant(
           plantId: _plant.plantId,
@@ -460,7 +404,9 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
           currentHealth: _plant.currentHealth,
           environment: _plant.environment,
           addedAt: _plant.addedAt,
-          speciesInfo: _plant.speciesInfo,
+          speciesInfo: speciesInfo != null 
+              ? PlantSpeciesInfo.fromJson(speciesInfo)
+              : _plant.speciesInfo,
         );
       });
       
@@ -532,7 +478,333 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   }
 }
 
-// FIXED: Removed callback, now returns RoomLocation via Navigator.pop
+// NEW: Edit Plant Sheet with searchable species selector
+class _EditPlantSheet extends StatefulWidget {
+  final Plant plant;
+  const _EditPlantSheet({required this.plant});
+
+  @override
+  State<_EditPlantSheet> createState() => _EditPlantSheetState();
+}
+
+class _EditPlantSheetState extends State<_EditPlantSheet> {
+  late TextEditingController _nicknameController;
+  List<PlantProfile> _profiles = [];
+  PlantProfile? _selectedProfile;
+  bool _isCustomSpecies = false;
+  String _customSpeciesText = '';
+  bool _isLoadingProfiles = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _nicknameController = TextEditingController(text: widget.plant.nickname);
+    _loadProfiles();
+  }
+
+  @override
+  void dispose() {
+    _nicknameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadProfiles() async {
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      final profiles = await api.getPlantProfiles();
+      
+      if (mounted) {
+        setState(() {
+          _profiles = profiles;
+          _isLoadingProfiles = false;
+          
+          // Find current species in profiles
+          final currentSpecies = widget.plant.species;
+          final matchingProfile = profiles.where(
+            (p) => p.species == currentSpecies || p.commonName == currentSpecies
+          ).firstOrNull;
+          
+          if (matchingProfile != null) {
+            _selectedProfile = matchingProfile;
+            _isCustomSpecies = false;
+          } else {
+            _isCustomSpecies = true;
+            _customSpeciesText = currentSpecies;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load profiles: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingProfiles = false;
+          _isCustomSpecies = true;
+          _customSpeciesText = widget.plant.species;
+        });
+      }
+    }
+  }
+
+  void _save() {
+    final nickname = _nicknameController.text.trim();
+    if (nickname.isEmpty) return;
+
+    final species = _isCustomSpecies 
+        ? _customSpeciesText
+        : _selectedProfile?.commonName ?? _selectedProfile?.species ?? widget.plant.species;
+
+    if (species.isEmpty) return;
+
+    // Build speciesInfo if profile selected
+    Map<String, dynamic>? speciesInfo;
+    if (_selectedProfile != null && !_isCustomSpecies) {
+      speciesInfo = {
+        'commonName': _selectedProfile!.commonName,
+        'scientificName': _selectedProfile!.species,
+        'emoji': _selectedProfile!.emoji,
+        if (_selectedProfile!.careProfile != null) ...{
+          'waterFrequencyDays': _selectedProfile!.careProfile!.watering.frequencyDays,
+          'waterAmountML': _selectedProfile!.careProfile!.watering.amountML,
+          'lightRequirement': _selectedProfile!.careProfile!.light.type,
+          'temperatureRange': '${_selectedProfile!.careProfile!.environment.tempMin}-${_selectedProfile!.careProfile!.environment.tempMax}°C',
+          'humidityPreference': '${_selectedProfile!.careProfile!.environment.humidityMin}-${_selectedProfile!.careProfile!.environment.humidityMax}%',
+        },
+      };
+    }
+
+    Navigator.pop(context, {
+      'nickname': nickname,
+      'species': species,
+      'speciesInfo': speciesInfo,
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.85,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          // Handle bar
+          Container(
+            margin: const EdgeInsets.only(top: 12),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                const Icon(Icons.edit, color: AppTheme.leafGreen),
+                const SizedBox(width: 12),
+                Text(
+                  'Edit Plant',
+                  style: GoogleFonts.comfortaa(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.leafGreen,
+                  ),
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.quicksand(
+                      color: AppTheme.soilBrown.withValues(alpha: 0.7),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Plant icon preview
+                  Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: AppTheme.softSage.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        _isCustomSpecies 
+                            ? '🪴' 
+                            : (_selectedProfile?.emoji ?? widget.plant.emoji),
+                        style: const TextStyle(fontSize: 56),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Nickname field
+                  Text(
+                    'Plant Name',
+                    style: GoogleFonts.quicksand(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.soilBrown,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _nicknameController,
+                    decoration: InputDecoration(
+                      hintText: 'e.g., Fernie Sanders',
+                      prefixIcon: Icon(
+                        Icons.local_florist,
+                        color: AppTheme.leafGreen.withValues(alpha: 0.7),
+                      ),
+                    ),
+                    textCapitalization: TextCapitalization.words,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Species selector
+                  Text(
+                    'Plant Species',
+                    style: GoogleFonts.quicksand(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.soilBrown,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SearchableSpeciesSelector(
+                    profiles: _profiles,
+                    selectedProfile: _selectedProfile,
+                    isCustomSpecies: _isCustomSpecies,
+                    customSpeciesText: _customSpeciesText,
+                    isLoading: _isLoadingProfiles,
+                    onProfileSelected: (profile) {
+                      setState(() {
+                        _selectedProfile = profile;
+                        _isCustomSpecies = false;
+                        _customSpeciesText = '';
+                      });
+                    },
+                    onCustomSpeciesChanged: (text) {
+                      setState(() {
+                        _customSpeciesText = text;
+                      });
+                    },
+                    onCustomSelected: () {
+                      setState(() {
+                        _isCustomSpecies = true;
+                        _selectedProfile = null;
+                      });
+                    },
+                  ),
+
+                  // Care info preview
+                  if (_selectedProfile != null && !_isCustomSpecies && _selectedProfile!.careProfile != null) ...[
+                    const SizedBox(height: 16),
+                    _buildCareInfoCard(),
+                  ],
+
+                  const SizedBox(height: 32),
+                ],
+              ),
+            ),
+          ),
+
+          // Save button
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: double.infinity,
+              height: 56,
+              child: ElevatedButton(
+                onPressed: _nicknameController.text.trim().isNotEmpty ? _save : null,
+                child: Text(
+                  'Save Changes',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCareInfoCard() {
+    final care = _selectedProfile!.careProfile!;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.softSage.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, color: AppTheme.leafGreen, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                'Care Requirements',
+                style: GoogleFonts.quicksand(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.leafGreen,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _buildCareRow(Icons.water_drop, 'Water every ${care.watering.frequencyDays} days'),
+          _buildCareRow(Icons.wb_sunny, care.light.type.replaceAll('-', ' ').toUpperCase()),
+          _buildCareRow(Icons.thermostat, '${care.environment.tempMin}-${care.environment.tempMax}°C'),
+          _buildCareRow(Icons.water, '${care.environment.humidityMin}-${care.environment.humidityMax}% humidity'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCareRow(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: AppTheme.soilBrown.withValues(alpha: 0.6)),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: GoogleFonts.quicksand(
+              fontSize: 13,
+              color: AppTheme.soilBrown.withValues(alpha: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Location Picker Sheet
 class _LocationPickerSheet extends StatefulWidget {
   final RoomLocation? initialLocation;
   const _LocationPickerSheet({this.initialLocation});
@@ -638,7 +910,6 @@ class _LocationPickerSheetState extends State<_LocationPickerSheet> {
 
   bool _canSave() => _isCustomRoom ? _customRoomController.text.trim().isNotEmpty : _selectedRoom != null;
 
-  // FIXED: Return value instead of calling callback
   void _save() {
     Navigator.pop(context, RoomLocation(
       room: _isCustomRoom ? _customRoomController.text.trim() : _selectedRoom!,
@@ -646,7 +917,6 @@ class _LocationPickerSheetState extends State<_LocationPickerSheet> {
       sunExposure: _selectedSunExposure,
     ));
   }
-  
 }
 
 class _RoomOption { final String name; final String emoji; final List<String> spots; const _RoomOption({required this.name, required this.emoji, required this.spots}); }

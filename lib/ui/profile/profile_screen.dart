@@ -106,8 +106,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       content: Text('Your plants will miss you!', style: GoogleFonts.quicksand(color: AppTheme.soilBrown)),
       actions: [
         TextButton(onPressed: () => Navigator.pop(ctx), child: Text('Stay', style: GoogleFonts.quicksand(color: AppTheme.leafGreen, fontWeight: FontWeight.w600))),
-        ElevatedButton(onPressed: () { Navigator.pop(ctx); Provider.of<AuthService>(context, listen: false).logout(); },
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta), child: const Text('Logout')),
+        ElevatedButton(
+          onPressed: () async {
+            Navigator.pop(ctx);
+            await Provider.of<AuthService>(context, listen: false).logout();
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta),
+          child: const Text('Logout'),
+        ),
       ],
     ));
   }

@@ -6,6 +6,7 @@ import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../widgets/leaf_background.dart';
+import 'friend_garden_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key});
@@ -142,6 +143,13 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     } catch (e) { _showSnackBar('Failed: $e', isError: true); }
   }
 
+  void _viewFriendGarden(Friend friend) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => FriendGardenScreen(friend: friend)),
+    );
+  }
+
   void _showSnackBar(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg),
       backgroundColor: isError ? AppTheme.terracotta : AppTheme.leafGreen,
@@ -191,7 +199,10 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     _friends.isEmpty ? _buildEmptyState('No friends yet', 'Tap + to add friends!') :
     RefreshIndicator(onRefresh: _loadData, child: ListView.builder(
       padding: const EdgeInsets.all(20), itemCount: _friends.length,
-      itemBuilder: (_, i) => _FriendTile(friend: _friends[i])));
+      itemBuilder: (_, i) => _FriendTile(
+        friend: _friends[i],
+        onViewGarden: () => _viewFriendGarden(_friends[i]),
+      )));
 
   Widget _buildRequestsTab() => _isLoading ? const Center(child: CircularProgressIndicator()) :
     _requests.isEmpty ? _buildEmptyState('No pending requests', 'Friend requests will appear here') :
@@ -247,7 +258,8 @@ class _LeaderboardTile extends StatelessWidget {
 
 class _FriendTile extends StatelessWidget {
   final Friend friend;
-  const _FriendTile({required this.friend});
+  final VoidCallback onViewGarden;
+  const _FriendTile({required this.friend, required this.onViewGarden});
 
   @override
   Widget build(BuildContext context) {
@@ -262,9 +274,7 @@ class _FriendTile extends StatelessWidget {
           Row(children: [const Icon(Icons.local_fire_department, size: 14, color: AppTheme.streakOrange), const SizedBox(width: 4),
             Text('${friend.streak} day streak', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.6)))]),
         ])),
-        IconButton(icon: const Icon(Icons.visibility, color: AppTheme.leafGreen), onPressed: () {
-          // View friend's garden
-        }),
+        IconButton(icon: const Icon(Icons.visibility, color: AppTheme.leafGreen), onPressed: onViewGarden),
       ]));
   }
 }

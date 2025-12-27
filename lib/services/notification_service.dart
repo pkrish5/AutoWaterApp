@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'api_service.dart';
+import 'package:flutter/foundation.dart';
 
 // Background message handler - must be top-level function
 @pragma('vm:entry-point')
@@ -24,50 +25,47 @@ class NotificationService {
 
   /// Initialize Firebase and notification service
   Future<void> initialize() async {
-    if (_initialized) return;
+  if (_initialized) return;
 
-    try {
-      // Initialize Firebase
-      await Firebase.initializeApp();
-      
-      _messaging = FirebaseMessaging.instance;
+  try {
+    await Firebase.initializeApp();
+    _messaging = FirebaseMessaging.instance;
 
-      // Set up background handler
-      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+    await requestPermission();
 
-      // Request permission
-      await requestPermission();
+    // Set up listeners first (these don't require APNS)
+    _messaging!.onTokenRefresh.listen((newToken) {
+      _fcmToken = newToken;
+      debugPrint('FCM Token received: $newToken');
+    });
 
-      // Get FCM token
-      _fcmToken = await _messaging!.getToken();
-      debugPrint('FCM Token: $_fcmToken');
+    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+    FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
 
-      // Listen for token refresh
-      _messaging!.onTokenRefresh.listen((newToken) {
-        _fcmToken = newToken;
-        debugPrint('FCM Token refreshed: $newToken');
-        // TODO: Update token on server if user is logged in
-      });
-
-      // Set up foreground message handler
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
-
-      // Handle notification tap when app is in background/terminated
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleNotificationTap);
-
-      // Check if app was opened from a notification
-      final initialMessage = await _messaging!.getInitialMessage();
-      if (initialMessage != null) {
-        _handleNotificationTap(initialMessage);
+    // iOS-specific: only do token/message ops if APNS ready
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      final apnsToken = await _messaging!.getAPNSToken();
+      if (apnsToken != null) {
+        _fcmToken = await _messaging!.getToken();
+        final initialMessage = await _messaging!.getInitialMessage();
+        if (initialMessage != null) _handleNotificationTap(initialMessage);
+      } else {
+        debugPrint('APNS not ready - token will arrive via onTokenRefresh');
       }
-
-      _initialized = true;
-      debugPrint('NotificationService initialized successfully');
-    } catch (e) {
-      debugPrint('Failed to initialize NotificationService: $e');
+    } else {
+      // Android
+      FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      _fcmToken = await _messaging!.getToken();
+      final initialMessage = await _messaging!.getInitialMessage();
+      if (initialMessage != null) _handleNotificationTap(initialMessage);
     }
-  }
 
+    _initialized = true;
+    debugPrint('NotificationService initialized successfully');
+  } catch (e) {
+    debugPrint('Failed to initialize NotificationService: $e');
+  }
+}
   /// Request notification permissions
   Future<bool> requestPermission() async {
     if (_messaging == null) return false;

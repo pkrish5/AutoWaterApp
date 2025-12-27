@@ -1,4 +1,6 @@
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 import 'package:flutter/material.dart';
 import '../core/constants.dart';
 
@@ -17,7 +19,11 @@ class AuthService with ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isAuthenticated => idToken != null;
-
+  final _storage = const FlutterSecureStorage();
+  static const _keyEmail = 'cognito_email';
+  static const _keyRefreshToken = 'cognito_refresh_token';
+  bool _isInitialized = false;
+  bool get isInitialized => _isInitialized;
   void _setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
@@ -35,6 +41,9 @@ class AuthService with ChangeNotifier {
       userId = _session?.getIdToken().getSub();
       userEmail = email;
       notifyListeners();
+      await _storage.write(key: _keyEmail, value: email);
+      await _storage.write(key: _keyRefreshToken, value: _session!.getRefreshToken()?.getToken());
+
       return null; // Success
     } on CognitoUserNewPasswordRequiredException {
       return "New password required";
@@ -196,16 +205,19 @@ class AuthService with ChangeNotifier {
       return false;
     }
   }
-
+  
   // LOGOUT
-  void logout() {
-    _cognitoUser?.signOut();
-    _cognitoUser = null;
-    _session = null;
-    idToken = null;
-    userId = null;
-    userEmail = null;
-    notifyListeners();
+  Future<void> logout() async {
+  await _storage.deleteAll(); 
+  
+  _cognitoUser?.signOut();
+  _cognitoUser = null;
+  _session = null;
+  idToken = null;
+  userId = null;
+  userEmail = null;
+  
+  notifyListeners();
   }
 
   // DELETE ACCOUNT
@@ -217,7 +229,7 @@ class AuthService with ChangeNotifier {
     _setLoading(true);
     try {
       await _cognitoUser!.deleteUser();
-      logout();
+      await logout();
       return null; // Success
     } on CognitoClientException catch (e) {
       return e.message ?? "Failed to delete account";
@@ -227,5 +239,25 @@ class AuthService with ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+    
   }
+Future<void> tryRestoreSession() async {
+  if (_isInitialized) return;
+  try {
+    final email = await _storage.read(key: _keyEmail);
+    final refreshTokenStr = await _storage.read(key: _keyRefreshToken);
+    if (email != null && refreshTokenStr != null) {
+      _cognitoUser = CognitoUser(email, _userPool);
+      _session = await _cognitoUser!.refreshSession(CognitoRefreshToken(refreshTokenStr));
+      idToken = _session?.getIdToken().getJwtToken();
+      userId = _session?.getIdToken().getSub();
+      userEmail = email;
+    }
+  } catch (e) {
+    await _storage.deleteAll();
+  } finally {
+    _isInitialized = true;
+    notifyListeners();
+  }
+}
 }

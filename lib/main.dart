@@ -58,7 +58,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    _registerPushToken();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+    Provider.of<AuthService>(context, listen: false).tryRestoreSession();
+  });
+
   }
 
   Future<void> _registerPushToken() async {
@@ -76,7 +79,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
-    
+    if (!auth.isInitialized) {
+    return const Scaffold(body: Center(child: CircularProgressIndicator()));
+  }
     // Register token when user logs in
     if (auth.isAuthenticated) {
       _registerPushToken();

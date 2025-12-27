@@ -607,29 +607,31 @@ Future<void> linkDevice({
       throw Exception("$e");
     }
   }
-    Future<void> updatePlant({
-    required String plantId,
-    String? nickname,
-    String? species,
-    Map<String, dynamic>? environment,
-    Map<String, dynamic>? location,
-  }) async {
-    final body = <String, dynamic>{};
-    if (nickname != null) body['nickname'] = nickname;
-    if (species != null) body['species'] = species;
-    if (environment != null) body['environment'] = environment;
-    if (location != null) body['location'] = location;
+Future<void> updatePlant({
+  required String plantId,
+  String? nickname,
+  String? species,
+  Map<String, dynamic>? environment,
+  Map<String, dynamic>? location,
+  Map<String, dynamic>? speciesInfo,
+}) async {
+  final body = <String, dynamic>{};
+  if (nickname != null) body['nickname'] = nickname;
+  if (species != null) body['species'] = species;
+  if (environment != null) body['environment'] = environment;
+  if (location != null) body['location'] = location;
+  if (speciesInfo != null) body['speciesInfo'] = speciesInfo;
 
-    final response = await http.put(
-      Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
-      headers: _headers,
-      body: jsonEncode(body),
-    );
+  final response = await http.put(
+    Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
+    headers: _headers,
+    body: jsonEncode(body),
+  );
 
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update plant: ${response.body}');
-    }
+  if (response.statusCode != 200) {
+    throw Exception('Failed to update plant: ${response.body}');
   }
+}
 
 
   Future<bool> respondToFriendRequest({
