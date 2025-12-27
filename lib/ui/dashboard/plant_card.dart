@@ -17,43 +17,107 @@ class PlantCard extends StatelessWidget {
     return AppTheme.terracotta;
   }
 
+  /// Get emoji from speciesInfo if available, otherwise fall back to species-based lookup
   String get _plantEmoji {
-    // Try to match from speciesInfo first
-    switch (plant.species.toLowerCase()) {
-      case 'pothos':
-      case 'vine':
-      case 'philodendron':
-        return '🌿';
-      case 'snake plant':
-      case 'aloe vera':
-      case 'jade plant':
-      case 'zz plant':
-      case 'succulent':
-      case 'spiky':
-      case 'cactus':
-        return '🌵';
-      case 'monstera':
-      case 'calathea':
-      case 'tropical':
-      case 'dracaena':
-        return '🌴';
-      case 'peace lily':
-      case 'flowering':
-        return '🌸';
-      case 'fiddle leaf fig':
-      case 'rubber plant':
-      case 'tree':
-        return '🌳';
-      case 'boston fern':
-      case 'fern':
-        return '🌿';
-      case 'spider plant':
-      case 'hanging':
-        return '🌿';
-      case 'bushy':
-      default:
-        return '🪴';
+    // First check if emoji is stored in speciesInfo (from DB)
+    if (plant.speciesInfo != null) {
+      // Check if there's an emoji field in the raw data
+      // This would be added to PlantSpeciesInfo model
+      final emoji = _getEmojiFromSpeciesInfo();
+      if (emoji != null) return emoji;
     }
+    
+    // Fall back to species name matching
+    return _getEmojiFromSpeciesName(plant.species);
+  }
+
+  String? _getEmojiFromSpeciesInfo() {
+    // The emoji should come from the speciesInfo stored when the plant was created
+    // This relies on the backend storing and returning the emoji
+    // For now, we'll use the species name from speciesInfo for better matching
+    if (plant.speciesInfo?.commonName != null) {
+      return _getEmojiFromSpeciesName(plant.speciesInfo!.commonName);
+    }
+    return null;
+  }
+
+  static String _getEmojiFromSpeciesName(String species) {
+    final s = species.toLowerCase();
+    
+    // Vines and trailing plants
+    if (s.contains('pothos') || s.contains('epipremnum')) return '🌿';
+    if (s.contains('philodendron')) return '🌿';
+    if (s.contains('ivy') || s.contains('hedera')) return '🌿';
+    
+    // Succulents and cacti
+    if (s.contains('snake') || s.contains('sansevieria')) return '🌵';
+    if (s.contains('aloe')) return '🌵';
+    if (s.contains('cactus') || s.contains('cacti')) return '🌵';
+    if (s.contains('succulent')) return '🌵';
+    if (s.contains('jade') || s.contains('crassula')) return '🌵';
+    if (s.contains('echeveria')) return '🌵';
+    if (s.contains('haworthia')) return '🌵';
+    if (s.contains('sedum')) return '🌵';
+    
+    // Tropical plants
+    if (s.contains('monstera')) return '🌴';
+    if (s.contains('calathea') || s.contains('prayer')) return '🌴';
+    if (s.contains('palm')) return '🌴';
+    if (s.contains('dracaena') || s.contains('dragon')) return '🌴';
+    if (s.contains('bird of paradise') || s.contains('strelitzia')) return '🌴';
+    if (s.contains('banana')) return '🌴';
+    
+    // Trees and large plants
+    if (s.contains('fiddle') || s.contains('ficus lyrata')) return '🌳';
+    if (s.contains('rubber') || s.contains('ficus elastica')) return '🌳';
+    if (s.contains('ficus')) return '🌳';
+    if (s.contains('tree')) return '🌳';
+    
+    // Flowering plants
+    if (s.contains('peace lily') || s.contains('spathiphyllum')) return '🌸';
+    if (s.contains('orchid')) return '🌸';
+    if (s.contains('anthurium')) return '🌸';
+    if (s.contains('rose')) return '🌹';
+    if (s.contains('lily')) return '🌸';
+    if (s.contains('hibiscus')) return '🌺';
+    if (s.contains('flower')) return '🌸';
+    
+    // Ferns
+    if (s.contains('fern') || s.contains('nephrolepis')) return '🌿';
+    if (s.contains('maidenhair') || s.contains('adiantum')) return '🌿';
+    
+    // Herbs and edibles
+    if (s.contains('basil')) return '🌱';
+    if (s.contains('mint')) return '🌱';
+    if (s.contains('rosemary')) return '🌱';
+    if (s.contains('thyme')) return '🌱';
+    if (s.contains('herb')) return '🌱';
+    if (s.contains('tomato')) return '🍅';
+    if (s.contains('pepper')) return '🌶️';
+    if (s.contains('lettuce') || s.contains('salad')) return '🥬';
+    if (s.contains('strawberry')) return '🍓';
+    
+    // Other common houseplants
+    if (s.contains('spider') || s.contains('chlorophytum')) return '🌿';
+    if (s.contains('zz') || s.contains('zamioculcas')) return '🌿';
+    if (s.contains('peperomia')) return '🌿';
+    if (s.contains('pilea') || s.contains('money')) return '🌿';
+    if (s.contains('begonia')) return '🌸';
+    if (s.contains('croton')) return '🌴';
+    if (s.contains('dieffenbachia')) return '🌿';
+    if (s.contains('aglaonema') || s.contains('chinese evergreen')) return '🌿';
+    if (s.contains('schefflera') || s.contains('umbrella')) return '🌳';
+    if (s.contains('yucca')) return '🌵';
+    
+    // Generic categories from archetypes
+    if (s.contains('vine')) return '🌿';
+    if (s.contains('spiky')) return '🌵';
+    if (s.contains('tropical')) return '🌴';
+    if (s.contains('bushy')) return '🌿';
+    if (s.contains('hanging')) return '🌿';
+    
+    // Default
+    return '🪴';
   }
 
   @override
@@ -66,7 +130,7 @@ class PlantCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: AppTheme.leafGreen.withValues(alpha:0.08),
+              color: AppTheme.leafGreen.withValues(alpha: 0.08),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -111,7 +175,7 @@ class PlantCard extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: AppTheme.softSage.withValues(alpha:0.5),
+              color: AppTheme.softSage.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -138,7 +202,7 @@ class PlantCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppTheme.sunYellow.withValues(alpha:0.2),
+        color: AppTheme.sunYellow.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -169,7 +233,7 @@ class PlantCard extends StatelessWidget {
             level: plant.waterLevel,
             size: 90,
             waterColor: _statusColor,
-            waterColorLight: _statusColor.withValues(alpha:0.5),
+            waterColorLight: _statusColor.withValues(alpha: 0.5),
           ),
           Text(_plantEmoji, style: const TextStyle(fontSize: 36)),
         ],
@@ -187,7 +251,7 @@ class PlantCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: _statusColor.withValues(alpha:0.1),
+          color: _statusColor.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -208,7 +272,7 @@ class PlantCard extends StatelessWidget {
               plant.waterStatus,
               style: GoogleFonts.quicksand(
                 fontSize: 11,
-                color: _statusColor.withValues(alpha:0.8),
+                color: _statusColor.withValues(alpha: 0.8),
               ),
             ),
           ],
@@ -223,7 +287,7 @@ class PlantCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: AppTheme.waterBlue.withValues(alpha:0.15),
+              color: AppTheme.waterBlue.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -246,7 +310,7 @@ class PlantCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
             decoration: BoxDecoration(
-              color: AppTheme.terracotta.withValues(alpha:0.1),
+              color: AppTheme.terracotta.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(

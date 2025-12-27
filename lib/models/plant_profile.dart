@@ -1,11 +1,13 @@
 class PlantProfile {
   final String species;
   final String commonName;
+  final String emoji;
   final CareProfile? careProfile;
 
   PlantProfile({
     required this.species,
     required this.commonName,
+    required this.emoji,
     this.careProfile,
   });
 
@@ -13,6 +15,7 @@ class PlantProfile {
     return PlantProfile(
       species: json['species'] ?? '',
       commonName: json['commonName'] ?? json['species'] ?? '',
+      emoji: json['emoji'] ?? _getDefaultEmoji(json['species'] ?? ''),
       careProfile: json['careProfile'] != null 
           ? CareProfile.fromJson(json['careProfile']) 
           : null,
@@ -21,6 +24,29 @@ class PlantProfile {
 
   // Display name for dropdown
   String get displayName => commonName.isNotEmpty ? commonName : species;
+
+  // Default emoji based on species name if not provided by backend
+  static String _getDefaultEmoji(String species) {
+    final s = species.toLowerCase();
+    if (s.contains('pothos') || s.contains('philodendron') || s.contains('vine')) return '🌿';
+    if (s.contains('snake') || s.contains('sansevieria')) return '🌵';
+    if (s.contains('monstera')) return '🌴';
+    if (s.contains('peace lily') || s.contains('spathiphyllum')) return '🌸';
+    if (s.contains('fiddle') || s.contains('ficus')) return '🌳';
+    if (s.contains('spider')) return '🌿';
+    if (s.contains('aloe')) return '🌵';
+    if (s.contains('cactus') || s.contains('succulent')) return '🌵';
+    if (s.contains('fern')) return '🌿';
+    if (s.contains('palm') || s.contains('dracaena')) return '🌴';
+    if (s.contains('rubber')) return '🌳';
+    if (s.contains('jade') || s.contains('zz')) return '🌿';
+    if (s.contains('calathea') || s.contains('prayer')) return '🌴';
+    if (s.contains('orchid')) return '🌸';
+    if (s.contains('rose')) return '🌹';
+    if (s.contains('tomato') || s.contains('pepper') || s.contains('vegetable')) return '🍅';
+    if (s.contains('herb') || s.contains('basil') || s.contains('mint')) return '🌱';
+    return '🪴';
+  }
 }
 
 class CareProfile {

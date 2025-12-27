@@ -55,15 +55,6 @@ class PlantInfoCard extends StatelessWidget {
   final VoidCallback? onEdit; 
   const PlantInfoCard({super.key, required this.plant, this.onEdit}); 
 
-  String get _emoji {
-    switch (plant.species.toLowerCase()) {
-      case 'vine': case 'pothos': return '🌿';
-      case 'spiky': case 'cactus': return '🌵';
-      case 'tropical': case 'monstera': return '🌴';
-      default: return '🪴';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -72,7 +63,7 @@ class PlantInfoCard extends StatelessWidget {
         decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24),
           boxShadow: [BoxShadow(color: AppTheme.leafGreen.withValues(alpha:0.1), blurRadius: 20, offset: const Offset(0, 8))]),
         child: Column(children: [
-          Text(_emoji, style: const TextStyle(fontSize: 64)),
+          Text(plant.emoji, style: const TextStyle(fontSize: 64)),
           const SizedBox(height: 12),
           Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text(plant.species, style: GoogleFonts.quicksand(fontSize: 16, color: AppTheme.soilBrown.withValues(alpha:0.7))),

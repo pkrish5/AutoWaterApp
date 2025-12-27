@@ -76,6 +76,41 @@ class Plant {
 
   String get archetype => species;
   
+  /// Get the emoji for this plant from speciesInfo or derive from species name
+  String get emoji {
+    // If emoji is stored in speciesInfo, use it
+    if (speciesInfo?.emoji != null && speciesInfo!.emoji!.isNotEmpty) {
+      return speciesInfo!.emoji!;
+    }
+    // Otherwise derive from species name
+    return _getEmojiFromSpecies(species);
+  }
+  
+  static String _getEmojiFromSpecies(String species) {
+    final s = species.toLowerCase();
+    if (s.contains('pothos') || s.contains('philodendron') || s.contains('vine')) return '🌿';
+    if (s.contains('snake') || s.contains('sansevieria')) return '🌵';
+    if (s.contains('monstera')) return '🌴';
+    if (s.contains('peace lily') || s.contains('spathiphyllum')) return '🌸';
+    if (s.contains('fiddle') || s.contains('ficus')) return '🌳';
+    if (s.contains('spider')) return '🌿';
+    if (s.contains('aloe')) return '🌵';
+    if (s.contains('cactus') || s.contains('succulent')) return '🌵';
+    if (s.contains('fern')) return '🌿';
+    if (s.contains('palm') || s.contains('dracaena')) return '🌴';
+    if (s.contains('rubber')) return '🌳';
+    if (s.contains('jade') || s.contains('zz')) return '🌿';
+    if (s.contains('calathea') || s.contains('prayer')) return '🌴';
+    if (s.contains('orchid')) return '🌸';
+    if (s.contains('rose')) return '🌹';
+    if (s.contains('tomato')) return '🍅';
+    if (s.contains('pepper')) return '🌶️';
+    if (s.contains('herb') || s.contains('basil') || s.contains('mint')) return '🌱';
+    if (s.contains('tropical')) return '🌴';
+    if (s.contains('spiky')) return '🌵';
+    return '🪴';
+  }
+  
   // Get watering recommendation for plants without devices
   WateringRecommendation get wateringRecommendation {
     if (speciesInfo != null) {
@@ -224,6 +259,7 @@ class PlantSpeciesInfo {
   final String? temperatureRange;
   final String? humidityPreference;
   final List<String>? tips;
+  final String? emoji; // Added emoji field
 
   PlantSpeciesInfo({
     required this.commonName,
@@ -236,6 +272,7 @@ class PlantSpeciesInfo {
     this.temperatureRange,
     this.humidityPreference,
     this.tips,
+    this.emoji,
   });
 
   factory PlantSpeciesInfo.fromJson(Map<String, dynamic> json) {
@@ -250,6 +287,7 @@ class PlantSpeciesInfo {
       temperatureRange: json['temperatureRange'],
       humidityPreference: json['humidityPreference'],
       tips: json['tips'] != null ? List<String>.from(json['tips']) : null,
+      emoji: json['emoji'],
     );
   }
 }
