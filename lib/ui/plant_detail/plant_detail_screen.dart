@@ -40,7 +40,12 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   bool _isWatering = false;
   bool _isRefilling = false;
   bool _needsDashboardRefresh = false;
+  bool _isEditDialogOpen = false;
+  bool _isLocationSheetOpen = false;
+
+
   int? _updatedStreak;
+  
   late Plant _plant;
 
   @override
@@ -277,6 +282,10 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
 
   // FIXED: Use await pattern instead of callback to ensure API call executes
   void _showEditLocationDialog() async {
+    if (_isLocationSheetOpen) return;
+    _isLocationSheetOpen = true;
+
+    try {
     RoomLocation? currentLocation;
     if (_plant.environment?.location != null) {
       final loc = _plant.environment!.location!;
@@ -298,7 +307,10 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     if (selectedLocation != null && mounted) {
       await _updatePlantLocation(selectedLocation);
     }
+  } finally {
+    _isLocationSheetOpen = false;
   }
+}
 
   // FIXED: Update local plant object directly instead of refetching
   Future<void> _updatePlantLocation(RoomLocation location) async {
@@ -346,6 +358,9 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   }
 
   Future<void> _showEditPlantDialog() async {
+    if (_isEditDialogOpen) return;
+    _isEditDialogOpen = true;
+  try {
     final nicknameController = TextEditingController(text: _plant.nickname);
     List<PlantProfile> profiles = [];
     String? selectedSpecies = _plant.species;
@@ -420,6 +435,10 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     );
     if (result != null) await _updatePlant(result['nickname']!, result['species']!);
   }
+  finally {
+    _isEditDialogOpen = false;
+  }
+}
 
   Future<void> _updatePlant(String nickname, String species) async {
     if (nickname == _plant.nickname && species == _plant.species) return;
