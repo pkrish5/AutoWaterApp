@@ -8,11 +8,14 @@ class AppTheme {
   static const Color mintGreen = Color(0xFF98D4BB);
     static const Color mossGreen = Color(0xFF8A9A5B);
 
+
   
   // Accent colors
   static const Color terracotta = Color(0xFFD4694A);
   static const Color sunYellow = Color(0xFFF4D03F);
   static const Color soilBrown = Color(0xFF5D4E37);
+  static const Color darkBrown = Color.fromARGB(255, 76, 62, 42);
+
   
   // Water colors
   static const Color waterBlue = Color(0xFF5B9BD5);

@@ -82,7 +82,7 @@ class PlantDetailHeader extends StatelessWidget {
         onSelected: (v) { 
           if (v == 'edit') onEdit?.call(); 
           else if (v == 'info') onInfo(); 
-          else if (v == 'edit_location')  onEditLocation?.call();
+          else if (v == 'edit_location') onEditLocation?.call();
           else if (v == 'gallery') onGallery(); 
           else if (v == 'unlink') onUnlink?.call(); 
           else if (v == 'delete') onDelete?.call();
@@ -212,14 +212,17 @@ class QuickActionsRow extends StatelessWidget {
   final VoidCallback onWater;
   final VoidCallback onGallery;
   final VoidCallback onInfo;
+  final VoidCallback? onCommunity;
 
   const QuickActionsRow({super.key, required this.plant, required this.isWatering, 
-    required this.onWater, required this.onGallery, required this.onInfo});
+    required this.onWater, required this.onGallery, required this.onInfo, this.onCommunity});
 
   @override
   Widget build(BuildContext context) {
     return Row(children: [
       Expanded(child: _QuickActionCard(icon: Icons.photo_camera, label: 'Photo', color: AppTheme.terracotta, onTap: onGallery)),
+      const SizedBox(width: 12),
+      Expanded(child: _QuickActionCard(icon: Icons.forum, label: 'Forum', color: AppTheme.mossGreen, onTap: onCommunity ?? () {})),
       const SizedBox(width: 12),
       Expanded(child: _QuickActionCard(icon: Icons.info_outline, label: 'Info', color: AppTheme.leafGreen, onTap: onInfo)),
       if (plant.hasDevice) ...[const SizedBox(width: 12),

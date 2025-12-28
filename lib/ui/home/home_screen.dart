@@ -4,6 +4,8 @@ import '../../core/theme.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../friends/friends_screen.dart';
 import '../profile/profile_screen.dart';
+import '../community/community_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,6 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _screens = const [
     DashboardScreen(),
     FriendsScreen(),
+    CommunityScreen(),
     ProfileScreen(),
   ];
 
@@ -86,7 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildNavItem(0, Icons.eco, 'Garden'),
                 _buildNavItem(1, Icons.people, 'Friends'),
-                _buildNavItem(2, Icons.person, 'Profile'),
+                _buildNavItem(2, Icons.groups, 'Community'),
+                _buildNavItem(3, Icons.person, 'Profile'),
               ],
             ),
           ),

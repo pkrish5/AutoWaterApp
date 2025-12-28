@@ -17,6 +17,8 @@ import '../widgets/plant_detail_widgets.dart';
 import '../widgets/room_selector.dart';
 import '../widgets/searchable_species_selector.dart';
 import '../../models/plant_profile.dart';
+import '../community/subforum_screen.dart';
+import '../../models/forum.dart';
 
 class PlantDetailResult {
   final bool needsRefresh;
@@ -54,7 +56,28 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     _plant = widget.plant;
     _loadData();
   }
-
+void _navigateToCommunity() {
+  // Use scientific name as subforumId (matches your DynamoDB structure)
+  final scientificName = _plant.speciesInfo?.scientificName ?? _plant.species;
+  final commonName = _plant.speciesInfo?.commonName ?? _plant.species;
+  
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => SubforumScreen(
+        subforum: Subforum(
+          subforumId: scientificName,
+          speciesId: scientificName,
+          name: commonName,
+          emoji: _plant.emoji,
+          memberCount: 0,
+          postCount: 0,
+          createdAt: DateTime.now(),
+        ),
+      ),
+    ),
+  );
+}
   Future<void> _deletePlant() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -450,7 +473,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
                               children: [
                                 PlantInfoCard(plant: _plant, onEdit: _showEditPlantDialog, onEditLocation: _showEditLocationDialog),
                                 const SizedBox(height: 20),
-                                QuickActionsRow(plant: _plant, isWatering: _isWatering, onWater: _triggerWatering, onGallery: _navigateToGallery, onInfo: _navigateToPlantInfo),
+                                QuickActionsRow(plant: _plant, isWatering: _isWatering, onWater: _triggerWatering, onGallery: _navigateToGallery, onInfo: _navigateToPlantInfo, onCommunity: _navigateToCommunity),
                                 const SizedBox(height: 20),
                                 if (_plant.hasDevice) ...[
                                   SensorDataCard(sensorData: _latestSensor),

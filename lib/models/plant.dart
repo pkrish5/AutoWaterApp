@@ -87,29 +87,33 @@ class Plant {
   }
   
   static String _getEmojiFromSpecies(String species) {
-    final s = species.toLowerCase();
-    if (s.contains('pothos') || s.contains('philodendron') || s.contains('vine')) return '🌿';
-    if (s.contains('snake') || s.contains('sansevieria')) return '🌵';
-    if (s.contains('monstera')) return '🌴';
-    if (s.contains('peace lily') || s.contains('spathiphyllum')) return '🌸';
-    if (s.contains('fiddle') || s.contains('ficus')) return '🌳';
-    if (s.contains('spider')) return '🌿';
-    if (s.contains('aloe')) return '🌵';
-    if (s.contains('cactus') || s.contains('succulent')) return '🌵';
-    if (s.contains('fern')) return '🌿';
-    if (s.contains('palm') || s.contains('dracaena')) return '🌴';
-    if (s.contains('rubber')) return '🌳';
-    if (s.contains('jade') || s.contains('zz')) return '🌿';
-    if (s.contains('calathea') || s.contains('prayer')) return '🌴';
-    if (s.contains('orchid')) return '🌸';
-    if (s.contains('rose')) return '🌹';
-    if (s.contains('tomato')) return '🍅';
-    if (s.contains('pepper')) return '🌶️';
-    if (s.contains('herb') || s.contains('basil') || s.contains('mint')) return '🌱';
-    if (s.contains('tropical')) return '🌴';
-    if (s.contains('spiky')) return '🌵';
-    return '🪴';
+  final s = species.toLowerCase();
+  
+  const emojiMap = <String, List<String>>{
+    '🌵': ['snake', 'sansevieria', 'aloe', 'cactus', 'succulent', 'agave', 'echeveria', 'haworthia', 'spiky'],
+    '🌴': ['monstera', 'palm', 'dracaena', 'calathea', 'prayer', 'tropical', 'bird of paradise', 'banana'],
+    '🌿': ['pothos', 'philodendron', 'vine', 'spider', 'fern', 'jade', 'zz', 'ivy', 'peperomia', 'hoya', 'tradescantia', 'wandering'],
+    '🌸': ['peace lily', 'spathiphyllum', 'orchid', 'lily', 'jasmine', 'gardenia', 'hibiscus', 'anthurium'],
+    '🌳': ['fiddle', 'ficus', 'rubber', 'tree', 'bonsai', 'schefflera', 'croton'],
+    '🌹': ['rose'],
+    '🌻': ['sunflower', 'daisy', 'marigold', 'zinnia'],
+    '🌷': ['tulip', 'hyacinth', 'bulb'],
+    '🍅': ['tomato'],
+    '🌶️': ['pepper', 'chili'],
+    '🥬': ['lettuce', 'spinach', 'kale', 'greens', 'chard'],
+    '🥕': ['carrot', 'radish', 'beet'],
+    '🌱': ['herb', 'basil', 'mint', 'cilantro', 'parsley', 'thyme', 'rosemary', 'oregano', 'sage', 'seedling'],
+    '🍓': ['strawberry', 'berry'],
+  };
+  
+  for (final entry in emojiMap.entries) {
+    if (entry.value.any((keyword) => s.contains(keyword))) {
+      return entry.key;
+    }
   }
+  
+  return '🪴';
+}
   
   // Get watering recommendation for plants without devices
   WateringRecommendation get wateringRecommendation {
