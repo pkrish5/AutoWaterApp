@@ -88,7 +88,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         Text('Automatic Watering', style: GoogleFonts.comfortaa(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
         Text(_enabled ? 'Waters on schedule' : 'Manual only', style: GoogleFonts.quicksand(fontSize: 13, color: AppTheme.soilBrown.withValues(alpha:0.6))),
       ])),
-      Switch(value: _enabled, onChanged: (v) => setState(() => _enabled = v), activeColor: AppTheme.leafGreen),
+      Switch(value: _enabled, onChanged: (v) => setState(() => _enabled = v), activeThumbColor: AppTheme.leafGreen),
     ]));
 
   Widget _buildDaysSelector() => Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
@@ -97,7 +97,9 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       const SizedBox(height: 16),
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: List.generate(7, (i) {
         final selected = _selectedDays.contains(i);
-        return GestureDetector(onTap: () => setState(() { if (selected) _selectedDays.remove(i); else { _selectedDays.add(i); _selectedDays.sort(); }}),
+        return GestureDetector(onTap: () => setState(() { if (selected) {
+          _selectedDays.remove(i);
+        } else { _selectedDays.add(i); _selectedDays.sort(); }}),
           child: AnimatedContainer(duration: const Duration(milliseconds: 200), width: 40, height: 40,
             decoration: BoxDecoration(color: selected ? AppTheme.leafGreen : AppTheme.softSage.withValues(alpha:0.3), borderRadius: BorderRadius.circular(10)),
             child: Center(child: Text(_dayNames[i][0], style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.bold, color: selected ? Colors.white : AppTheme.soilBrown)))));

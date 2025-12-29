@@ -1,4 +1,5 @@
-/// Forum models for the RootWise community feature
+/// Forum models for the Buddi community feature
+library;
 
 class Subforum {
   final String subforumId;

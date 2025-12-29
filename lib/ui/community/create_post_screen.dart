@@ -28,7 +28,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   String? _selectedSubforumId;
   List<Subforum> _subforums = [];
-  List<String> _tags = [];
+  final List<String> _tags = [];
   bool _isLoadingSubforums = true;
   bool _isSubmitting = false;
 
@@ -134,7 +134,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.softSage.withOpacity(0.3),
+      backgroundColor: AppTheme.softSage.withValues(alpha:0.3),
       body: LeafBackground(
         child: SafeArea(
           child: Column(
@@ -180,7 +180,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha:0.05),
                   blurRadius: 8,
                 ),
               ],
@@ -223,7 +223,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             borderRadius: BorderRadius.circular(12),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha:0.05),
                 blurRadius: 8,
               ),
             ],
@@ -243,7 +243,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ),
                 )
               : DropdownButtonFormField<String>(
-                  value: _selectedSubforumId,
+                  initialValue: _selectedSubforumId,
                   decoration: InputDecoration(
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -425,7 +425,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppTheme.leafGreen.withOpacity(0.15),
+                  color: AppTheme.leafGreen.withValues(alpha:0.15),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -445,7 +445,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       child: Icon(
                         Icons.close,
                         size: 16,
-                        color: AppTheme.leafGreen.withOpacity(0.7),
+                        color: AppTheme.leafGreen.withValues(alpha:0.7),
                       ),
                     ),
                   ],

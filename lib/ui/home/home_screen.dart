@@ -18,12 +18,22 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   late final PageController _pageController;
 
-  final List<Widget> _screens = const [
-    DashboardScreen(),
-    FriendsScreen(),
-    CommunityScreen(),
-    ProfileScreen(),
-  ];
+  List<Widget> get _screens => [
+  const DashboardScreen(),
+  FriendsScreen(onEdgeSwipe: _navigateByDirection),
+  CommunityScreen(onEdgeSwipe: _navigateByDirection),
+  const ProfileScreen(),
+];
+  void _navigateByDirection(int direction) {
+  final newIndex = (_currentIndex + direction).clamp(0, _screens.length - 1);
+  if (newIndex != _currentIndex) {
+    _pageController.animateToPage(
+      newIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
+  }
+}
 
   @override
   void initState() {
@@ -48,28 +58,24 @@ class _HomeScreenState extends State<HomeScreen> {
         children: _screens,
       ),
       bottomNavigationBar: GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onHorizontalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
+        behavior: HitTestBehavior.opaque,
+        onHorizontalDragUpdate: (details) {
+          // Calculate which tab based on horizontal position
+          final RenderBox box = context.findRenderObject() as RenderBox;
+          final localPosition = box.globalToLocal(details.globalPosition);
+          final screenWidth = box.size.width;
+          final tabWidth = screenWidth / _screens.length;
+          final targetIndex = (localPosition.dx / tabWidth).floor().clamp(0, _screens.length - 1);
+          
+          if (targetIndex != _currentIndex) {
+            _pageController.animateToPage(
+              targetIndex,
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+            );
+          }
+        },
 
-        // swipe right → previous tab
-        if (velocity > 300 && _currentIndex > 0) {
-          _pageController.animateToPage(
-            _currentIndex - 1,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-
-        // swipe left → next tab
-        if (velocity < -300 && _currentIndex < _screens.length - 1) {
-          _pageController.animateToPage(
-            _currentIndex + 1,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        }
-      },
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,

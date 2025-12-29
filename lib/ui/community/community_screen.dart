@@ -12,7 +12,8 @@ import 'create_post_screen.dart';
 import 'post_detail_screen.dart';
 
 class CommunityScreen extends StatefulWidget {
-  const CommunityScreen({super.key});
+  final void Function(int direction)? onEdgeSwipe;
+  const CommunityScreen({super.key, this.onEdgeSwipe});
 
   @override
   State<CommunityScreen> createState() => _CommunityScreenState();
@@ -224,12 +225,25 @@ class _CommunityScreenState extends State<CommunityScreen>
               _buildHeader(),
               _buildTabBar(),
               Expanded(
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildFeedTab(),
-                    _buildDiscoverTab(),
-                  ],
+                child: NotificationListener<OverscrollNotification>(
+                  onNotification: (notification) {
+                    if (notification.overscroll < -10 && _tabController.index == 0) {
+                      widget.onEdgeSwipe?.call(-1);
+                      return true;
+                    }
+                    if (notification.overscroll > 10 && _tabController.index == _tabController.length - 1) {
+                      widget.onEdgeSwipe?.call(1);
+                      return true;
+                    }
+                    return false;
+                  },
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildFeedTab(),
+                      _buildDiscoverTab(),
+                    ],
+                  ),
                 ),
               ),
             ],

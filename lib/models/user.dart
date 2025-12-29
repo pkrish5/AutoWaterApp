@@ -2,6 +2,7 @@ class User {
   final String userId;
   final String email;
   final String? username;
+  final String? _displayNameField;
   final int streak;
   final int longestStreak;
   final UserLocation? location;
@@ -16,6 +17,7 @@ class User {
     required this.userId,
     required this.email,
     this.username,
+    String? displayName,
     required this.streak,
     required this.longestStreak,
     this.location,
@@ -25,13 +27,14 @@ class User {
     this.isPublicProfile = false,
     this.profileImageUrl,
     this.timezone,
-  });
+  }): _displayNameField = displayName; 
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       userId: json['userId'] ?? '',
       email: json['email'] ?? '',
       username: json['name'] ?? json['username'],
+      displayName: json['displayName'],
       streak: json['streak'] ?? 0,
       longestStreak: json['longestStreak'] ?? 0,
       location: json['location'] != null
@@ -53,7 +56,7 @@ class User {
     );
   }
 
-  String get displayName => username ?? email.split('@').first;
+  String get displayName => _displayNameField ?? username ?? email.split('@').first;
   String get timezoneDisplay {
     if (timezone == null) return 'Not set';
     // Convert "America/Chicago" to "Chicago (America)"

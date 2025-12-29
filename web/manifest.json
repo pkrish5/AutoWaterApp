@@ -1,6 +1,6 @@
 {
-    "name": "autowaterapp",
-    "short_name": "autowaterapp",
+    "name": "buddiapp",
+    "short_name": "buddiapp",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

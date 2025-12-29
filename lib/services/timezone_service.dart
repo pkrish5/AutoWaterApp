@@ -13,15 +13,16 @@ class TimezoneService {
   /// Get the device's current timezone
   /// Returns timezone in IANA format (e.g., "America/Chicago", "Europe/London")
   Future<String?> getDeviceTimezone() async {
-    try {
-      final timezone = await FlutterTimezone.getLocalTimezone();
-      debugPrint('Detected timezone: $timezone');
-      return timezone;
-    } catch (e) {
-      debugPrint('Failed to get timezone: $e');
-      return null;
-    }
+  try {
+    final timezoneInfo = await FlutterTimezone.getLocalTimezone();
+    final timezone = timezoneInfo.identifier;  // Try 'identifier' instead of 'name'
+    debugPrint('Detected timezone: $timezone');
+    return timezone;
+  } catch (e) {
+    debugPrint('Failed to get timezone: $e');
+    return null;
   }
+}
 
   /// Get the user's saved timezone (from backend/local storage)
   Future<String?> getSavedTimezone() async {

@@ -301,7 +301,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: AppTheme.softSage.withOpacity(0.3),
+        backgroundColor: AppTheme.softSage.withValues(alpha:0.3),
         body: LeafBackground(
           child: SafeArea(
             child: Column(
@@ -375,7 +375,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha:0.05),
                   blurRadius: 8,
                 ),
               ],
@@ -392,7 +392,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha:0.05),
                   blurRadius: 8,
                 ),
               ],
@@ -411,7 +411,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha:0.05),
                   blurRadius: 8,
                 ),
               ],
@@ -456,7 +456,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -470,7 +470,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: AppTheme.leafGreen.withOpacity(0.2),
+                backgroundColor: AppTheme.leafGreen.withValues(alpha:0.2),
                 backgroundImage: _post.authorProfileImage != null
                     ? NetworkImage(_post.authorProfileImage!)
                     : null,
@@ -511,7 +511,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.2),
+                    color: Colors.amber.withValues(alpha:0.2),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -550,7 +550,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             _post.body,
             style: GoogleFonts.quicksand(
               fontSize: 15,
-              color: AppTheme.darkBrown.withOpacity(0.8),
+              color: AppTheme.darkBrown.withValues(alpha:0.8),
               height: 1.5,
             ),
           ),
@@ -583,7 +583,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: AppTheme.leafGreen.withOpacity(0.1),
+                    color: AppTheme.leafGreen.withValues(alpha:0.1),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Text(
@@ -661,7 +661,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: isActive ? activeColor.withOpacity(0.1) : Colors.transparent,
+          color: isActive ? activeColor.withValues(alpha:0.1) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(
@@ -690,7 +690,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: AppTheme.leafGreen.withOpacity(0.2),
+              color: AppTheme.leafGreen.withValues(alpha:0.2),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Text(
@@ -757,14 +757,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         border: depth > 0
             ? Border(
                 left: BorderSide(
-                  color: AppTheme.leafGreen.withOpacity(0.3),
+                  color: AppTheme.leafGreen.withValues(alpha:0.3),
                   width: 2,
                 ),
               )
             : null,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha:0.03),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),
@@ -778,7 +778,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             children: [
               CircleAvatar(
                 radius: 14,
-                backgroundColor: AppTheme.leafGreen.withOpacity(0.2),
+                backgroundColor: AppTheme.leafGreen.withValues(alpha:0.2),
                 backgroundImage: comment.authorProfileImage != null
                     ? NetworkImage(comment.authorProfileImage!)
                     : null,
@@ -819,7 +819,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             comment.body,
             style: GoogleFonts.quicksand(
               fontSize: 14,
-              color: AppTheme.darkBrown.withOpacity(0.85),
+              color: AppTheme.darkBrown.withValues(alpha:0.85),
               height: 1.4,
             ),
           ),
@@ -907,7 +907,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         color: Colors.white,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha:0.05),
             blurRadius: 10,
             offset: const Offset(0, -2),
           ),
@@ -961,7 +961,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                         : 'Add a comment...',
                     hintStyle: GoogleFonts.quicksand(color: Colors.grey[400]),
                     filled: true,
-                    fillColor: AppTheme.softSage.withOpacity(0.3),
+                    fillColor: AppTheme.softSage.withValues(alpha:0.3),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,

@@ -80,8 +80,9 @@ class PlantDetailHeader extends StatelessWidget {
           if (onDelete != null) PopupMenuItem(value: 'delete', child: Row(children: [const Icon(Icons.delete_forever, color: AppTheme.terracotta), const SizedBox(width: 12), Text('Delete Plant', style: GoogleFonts.quicksand(color: AppTheme.terracotta))])),
         ],
         onSelected: (v) { 
-          if (v == 'edit') onEdit?.call(); 
-          else if (v == 'info') onInfo(); 
+          if (v == 'edit') {
+            onEdit?.call();
+          } else if (v == 'info') onInfo(); 
           else if (v == 'edit_location') onEditLocation?.call();
           else if (v == 'gallery') onGallery(); 
           else if (v == 'unlink') onUnlink?.call(); 

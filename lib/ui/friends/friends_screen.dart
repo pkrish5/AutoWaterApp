@@ -9,7 +9,8 @@ import '../widgets/leaf_background.dart';
 import 'friend_garden_screen.dart';
 
 class FriendsScreen extends StatefulWidget {
-  const FriendsScreen({super.key});
+  final void Function(int direction)? onEdgeSwipe;
+  const FriendsScreen({super.key, this.onEdgeSwipe});
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
 }
@@ -168,11 +169,29 @@ void _showAddFriendDialog() {
     return Scaffold(body: LeafBackground(leafCount: 4, child: SafeArea(child: Column(children: [
       _buildHeader(),
       _buildTabs(),
-      Expanded(child: TabBarView(controller: _tabController, children: [
-        _buildLeaderboardTab(),
-        _buildFriendsTab(),
-        _buildRequestsTab(),
-      ])),
+      Expanded(
+        child: NotificationListener<OverscrollNotification>(
+          onNotification: (notification) {
+            if (notification.overscroll < -10 && _tabController.index == 0) {
+              widget.onEdgeSwipe?.call(-1);
+              return true;
+            }
+            if (notification.overscroll > 10 && _tabController.index == _tabController.length - 1) {
+              widget.onEdgeSwipe?.call(1);
+              return true;
+            }
+            return false;
+          },
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildLeaderboardTab(),
+              _buildFriendsTab(),
+              _buildRequestsTab(),
+            ],
+          ),
+        ),
+      ),
     ]))));
   }
 

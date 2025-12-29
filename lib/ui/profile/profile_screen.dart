@@ -170,6 +170,7 @@ Future<void> _updateUsername() async {
     _showSnackBar('Failed: $e', isError: true);
   }
 }
+  
   Future<void> _updateLocation() async {
     final results = await showModalBottomSheet<UserLocation>(
       context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
@@ -202,7 +203,11 @@ Future<void> _updateUsername() async {
           final auth = Provider.of<AuthService>(context, listen: false);
           final error = await auth.changePassword(oldPwController.text, newPwController.text);
           Navigator.pop(ctx);
-          if (error != null) _showSnackBar(error, isError: true); else _showSnackBar('Password changed!');
+          if (error != null) {
+            _showSnackBar(error, isError: true);
+          } else {
+            _showSnackBar('Password changed!');
+          }
         }, child: const Text('Change')),
       ],
     ));
@@ -483,8 +488,8 @@ Widget _buildProfileCard(AuthService auth) => Container(
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
     child: Column(children: [
       _SettingsTile(icon: Icons.lock_outline, title: 'Change Password', onTap: _showChangePasswordDialog),
-      _SettingsTile(icon: Icons.notifications_outlined, title: 'Notifications', trailing: Switch(value: _user?.settings?.pushNotificationsEnabled ?? true, onChanged: (_) {}, activeColor: AppTheme.leafGreen)),
-      _SettingsTile(icon: Icons.public, title: 'Public Profile', trailing: Switch(value: _user?.isPublicProfile ?? false, onChanged: (_) {}, activeColor: AppTheme.leafGreen)),
+      _SettingsTile(icon: Icons.notifications_outlined, title: 'Notifications', trailing: Switch(value: _user?.settings?.pushNotificationsEnabled ?? true, onChanged: (_) {}, activeThumbColor: AppTheme.leafGreen)),
+      _SettingsTile(icon: Icons.public, title: 'Public Profile', trailing: Switch(value: _user?.isPublicProfile ?? false, onChanged: (_) {}, activeThumbColor: AppTheme.leafGreen)),
     ]));
 
   Widget _buildDangerZone() => Container(padding: const EdgeInsets.all(8),

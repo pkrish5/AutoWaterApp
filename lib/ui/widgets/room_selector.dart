@@ -318,7 +318,7 @@ class _LocationPickerSheetState extends State<_LocationPickerSheet> {
                   if (_selectedRoom != null && !_isCustomRoom) ...[
                     const SizedBox(height: 24),
                     Text(
-                      'Spot in ${_selectedRoom}',
+                      'Spot in $_selectedRoom',
                       style: GoogleFonts.quicksand(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,

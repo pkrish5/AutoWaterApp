@@ -62,7 +62,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           const SizedBox(height: 48),
           TextFormField(controller: _emailController, keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(labelText: 'Email or Username', prefixIcon: Icon(Icons.mail_outline, color: AppTheme.leafGreen.withValues(alpha:0.7))),
-            validator: (v) { if (v == null || v.isEmpty) return 'Please enter your email or username'; }),
+            validator: (v) { if (v == null || v.isEmpty) return 'Please enter your email or username';
+ return null; }),
           const SizedBox(height: 20),
           TextFormField(controller: _passwordController, obscureText: _obscurePassword,
             decoration: InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline, color: AppTheme.leafGreen.withValues(alpha:0.7)),

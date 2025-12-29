@@ -444,7 +444,7 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
                 value: _showDeviceField,
                 onChanged: (value) => setState(() => _showDeviceField = value),
                 activeTrackColor: AppTheme.leafGreen.withValues(alpha: 0.5),
-                activeColor: AppTheme.leafGreen,
+                activeThumbColor: AppTheme.leafGreen,
               ),
             ],
           ),
