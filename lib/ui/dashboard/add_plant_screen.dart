@@ -71,8 +71,8 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
     }
 
     final species = _isCustomSpecies 
-        ? _customSpeciesText
-        : _selectedProfile?.commonName ?? _selectedProfile?.species;
+      ? _customSpeciesText
+      : _selectedProfile?.species; 
 
     if (species == null || species.isEmpty) {
       _showSnackBar('Please select or enter a plant species', isError: true);

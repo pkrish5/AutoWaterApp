@@ -78,13 +78,15 @@ class Plant {
   
   /// Get the emoji for this plant from speciesInfo or derive from species name
   String get emoji {
-    // If emoji is stored in speciesInfo, use it
-    if (speciesInfo?.emoji != null && speciesInfo!.emoji!.isNotEmpty) {
-      return speciesInfo!.emoji!;
-    }
-    // Otherwise derive from species name
-    return _getEmojiFromSpecies(species);
+  if (speciesInfo?.emoji != null && speciesInfo!.emoji!.isNotEmpty) {
+    return speciesInfo!.emoji!;
   }
+  // Try commonName first, then species
+  if (speciesInfo?.commonName != null) {
+    return _getEmojiFromSpecies(speciesInfo!.commonName);
+  }
+  return _getEmojiFromSpecies(species);
+}
   
   static String _getEmojiFromSpecies(String species) {
   final s = species.toLowerCase();

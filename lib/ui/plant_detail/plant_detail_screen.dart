@@ -574,8 +574,9 @@ class _EditPlantSheetState extends State<_EditPlantSheet> {
     if (nickname.isEmpty) return;
 
     final species = _isCustomSpecies 
-        ? _customSpeciesText
-        : _selectedProfile?.commonName ?? _selectedProfile?.species ?? widget.plant.species;
+      ? _customSpeciesText
+      : _selectedProfile?.species ?? widget.plant.species; 
+
 
     if (species.isEmpty) return;
 
