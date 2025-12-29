@@ -219,14 +219,20 @@ class QuickActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(children: [
-      Expanded(child: _QuickActionCard(icon: Icons.photo_camera, label: 'Photo', color: AppTheme.terracotta, onTap: onGallery)),
-      const SizedBox(width: 12),
-      Expanded(child: _QuickActionCard(icon: Icons.forum, label: 'Forum', color: AppTheme.mossGreen, onTap: onCommunity ?? () {})),
-      const SizedBox(width: 12),
-      Expanded(child: _QuickActionCard(icon: Icons.info_outline, label: 'Info', color: AppTheme.leafGreen, onTap: onInfo)),
-      if (plant.hasDevice) ...[const SizedBox(width: 12),
-        Expanded(child: _QuickActionCard(icon: Icons.water_drop, label: 'Water', color: AppTheme.waterBlue, isLoading: isWatering, onTap: onWater))],
+    return Column(children: [
+      Row(children: [
+        Expanded(child: _QuickActionCard(icon: Icons.photo_camera, label: 'Photo', color: AppTheme.terracotta, onTap: onGallery)),
+        const SizedBox(width: 12),
+        Expanded(child: _QuickActionCard(icon: Icons.forum, label: 'Forum', color: AppTheme.mossGreen, onTap: onCommunity ?? () {})),
+      ]),
+      const SizedBox(height: 12),
+      Row(children: [
+        Expanded(child: _QuickActionCard(icon: Icons.info_outline, label: 'Info', color: AppTheme.leafGreen, onTap: onInfo)),
+        const SizedBox(width: 12),
+        Expanded(child: plant.hasDevice 
+          ? _QuickActionCard(icon: Icons.water_drop, label: 'Water', color: AppTheme.waterBlue, isLoading: isWatering, onTap: onWater)
+          : _QuickActionCard(icon: Icons.eco, label: 'Care', color: AppTheme.softSage, onTap: onInfo)),
+      ]),
     ]);
   }
 }

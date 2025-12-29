@@ -10,6 +10,7 @@ import '../../models/user.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/streak_widget.dart';
 import '../widgets/timezone_picker.dart';
+import 'package:flutter/services.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -116,19 +117,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _updateUsername() async {
-    final newUsername = _usernameController.text.trim();
-    if (newUsername.isEmpty) return;
-    try {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final api = ApiService(auth.idToken!);
-      await api.updateUserProfile(userId: auth.userId!, name: newUsername);
-      _showSnackBar('Username updated!');
-      setState(() => _isEditingUsername = false);
-      _loadProfile();
-    } catch (e) { _showSnackBar('Failed: $e', isError: true); }
+  
+String? _validateUsername(String username) {
+  if (username.isEmpty) {
+    return 'Username cannot be empty';
   }
+  if (username.length < 3) {
+    return 'Username must be at least 3 characters';
+  }
+  if (username.length > 20) {
+    return 'Username must be 20 characters or less';
+  }
+  if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(username)) {
+    return 'Only letters, numbers, underscores, and periods allowed';
+  }
+  return null; // Valid
+}
 
+Future<void> _updateUsername() async {
+  final newUsername = _usernameController.text.trim();
+  
+  // Local validation first
+  final validationError = _validateUsername(newUsername);
+  if (validationError != null) {
+    _showSnackBar(validationError, isError: true);
+    return;
+  }
+  
+  // Don't update if same as current (case-insensitive)
+  if (newUsername.toLowerCase() == _user?.username?.toLowerCase()) {
+    setState(() => _isEditingUsername = false);
+    return;
+  }
+  
+  try {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
+    
+    // Check if username is available
+    final isAvailable = await api.checkUsernameAvailability(newUsername);
+    if (!isAvailable) {
+      _showSnackBar('Username is already taken', isError: true);
+      return;
+    }
+    
+    // Update username
+    await api.updateUserProfile(userId: auth.userId!, name: newUsername);
+    _showSnackBar('Username updated!');
+    setState(() => _isEditingUsername = false);
+    _loadProfile();
+  } catch (e) {
+    _showSnackBar('Failed: $e', isError: true);
+  }
+}
   Future<void> _updateLocation() async {
     final results = await showModalBottomSheet<UserLocation>(
       context: context, isScrollControlled: true, backgroundColor: Colors.transparent,
@@ -221,31 +262,130 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Text('Profile', style: GoogleFonts.comfortaa(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.leafGreen)),
   ]);
 
-  Widget _buildProfileCard(AuthService auth) => Container(padding: const EdgeInsets.all(24),
-    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
-    child: Column(children: [
-      Container(padding: const EdgeInsets.all(20), decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha:0.3), shape: BoxShape.circle),
-        child: const Text('🌱', style: TextStyle(fontSize: 48))),
-      const SizedBox(height: 16),
-      if (_isEditingUsername) Row(children: [
-        Expanded(child: TextField(controller: _usernameController, autofocus: true, decoration: const InputDecoration(hintText: 'Username'))),
-        IconButton(icon: const Icon(Icons.check, color: AppTheme.leafGreen), onPressed: _updateUsername),
-        IconButton(icon: const Icon(Icons.close, color: AppTheme.terracotta), onPressed: () => setState(() => _isEditingUsername = false)),
-      ]) else Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text(_user?.displayName ?? auth.userEmail?.split('@').first ?? 'User', style: GoogleFonts.comfortaa(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.soilBrown)),
-        IconButton(icon: Icon(Icons.edit, size: 18, color: AppTheme.soilBrown.withValues(alpha:0.5)), onPressed: () {
-          _usernameController.text = _user?.username ?? '';
-          setState(() => _isEditingUsername = true);
-        }),
+  // Replace _buildProfileCard in profile_screen.dart with this version
+// Adds a tappable @username that copies to clipboard for sharing
+
+Widget _buildProfileCard(AuthService auth) => Container(
+  padding: const EdgeInsets.all(24),
+  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+  child: Column(children: [
+    Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.softSage.withValues(alpha: 0.3),
+        shape: BoxShape.circle,
+      ),
+      child: const Text('🌱', style: TextStyle(fontSize: 48)),
+    ),
+    const SizedBox(height: 16),
+    if (_isEditingUsername)
+      Row(children: [
+        Expanded(child: TextField(
+          controller: _usernameController,
+          autofocus: true,
+          decoration: const InputDecoration(hintText: 'Username'),
+        )),
+        IconButton(
+          icon: const Icon(Icons.check, color: AppTheme.leafGreen),
+          onPressed: _updateUsername,
+        ),
+        IconButton(
+          icon: const Icon(Icons.close, color: AppTheme.terracotta),
+          onPressed: () => setState(() => _isEditingUsername = false),
+        ),
+      ])
+    else
+      Column(children: [
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text(
+            _user?.displayName ?? auth.userEmail?.split('@').first ?? 'User',
+            style: GoogleFonts.comfortaa(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.soilBrown,
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.edit, size: 18, color: AppTheme.soilBrown.withValues(alpha: 0.5)),
+            onPressed: () {
+              _usernameController.text = _user?.username ?? '';
+              setState(() => _isEditingUsername = true);
+            },
+          ),
+        ]),
+        const SizedBox(height: 4),
+        // Shareable @username - tap to copy
+        if (_user?.username != null && _user!.username!.isNotEmpty)
+          GestureDetector(
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: '@${_user!.username}'));
+              _showSnackBar('Username copied! Share it with friends');
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.leafGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppTheme.leafGreen.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '@${_user!.username}',
+                    style: GoogleFonts.quicksand(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.leafGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    Icons.copy,
+                    size: 14,
+                    color: AppTheme.leafGreen.withValues(alpha: 0.7),
+                  ),
+                ],
+              ),
+            ),
+          ),
       ]),
-      const SizedBox(height: 4),
-      Text(auth.userEmail ?? '', style: GoogleFonts.quicksand(fontSize: 14, color: AppTheme.soilBrown.withValues(alpha:0.6))),
-      const SizedBox(height: 8),
-      Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), decoration: BoxDecoration(color: AppTheme.softSage.withValues(alpha:0.3), borderRadius: BorderRadius.circular(12)),
-        child: Text('Member since ${_user?.memberSince ?? 'Unknown'}', style: GoogleFonts.quicksand(fontSize: 12, color: AppTheme.soilBrown.withValues(alpha:0.7)))),
-      const SizedBox(height: 12),
-      Text('User ID: ${auth.userId ?? 'N/A'}', style: GoogleFonts.quicksand(fontSize: 11, color: AppTheme.soilBrown.withValues(alpha:0.4))),
-    ]));
+    const SizedBox(height: 8),
+    Text(
+      auth.userEmail ?? '',
+      style: GoogleFonts.quicksand(
+        fontSize: 14,
+        color: AppTheme.soilBrown.withValues(alpha: 0.6),
+      ),
+    ),
+    const SizedBox(height: 8),
+    Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppTheme.softSage.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        'Member since ${_user?.memberSince ?? 'Unknown'}',
+        style: GoogleFonts.quicksand(
+          fontSize: 12,
+          color: AppTheme.soilBrown.withValues(alpha: 0.7),
+        ),
+      ),
+    ),
+    const SizedBox(height: 12),
+    Text(
+      'User ID: ${auth.userId ?? 'N/A'}',
+      style: GoogleFonts.quicksand(
+        fontSize: 11,
+        color: AppTheme.soilBrown.withValues(alpha: 0.4),
+      ),
+    ),
+  ]),
+);
+
+// Don't forget to add this import at the top of the file:
+// import 'package:flutter/services.dart';
 
   Widget _buildStreakCard() => Container(padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),

@@ -835,5 +835,22 @@ Future<void> initializeUserProfile({
     throw Exception("$e");
   }
 }
+Future<bool> checkUsernameAvailability(String username) async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/users/check-username?username=${Uri.encodeComponent(username.toLowerCase())}'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['available'] == true;
+    } else {
+      throw Exception("Failed to check username: ${response.statusCode}");
+    }
+  } catch (e) {
+    throw Exception("Connection error: $e");
+  }
+}
 
 }

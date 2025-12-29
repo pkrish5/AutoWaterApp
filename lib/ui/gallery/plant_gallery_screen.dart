@@ -305,27 +305,30 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
                 child: const Icon(Icons.arrow_back, color: AppTheme.leafGreen),
               ),
             ),
-            const Spacer(),
-            Column(
-              children: [
-                Text(
-                  "${widget.plant.nickname}'s Gallery",
-                  style: GoogleFonts.comfortaa(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.leafGreen,
+            Expanded(
+              child: Column(
+                children: [
+                  Text(
+                    "${widget.plant.nickname}'s Gallery",
+                    style: GoogleFonts.comfortaa(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.leafGreen,
+                    ),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                Text(
-                  "${_images.length} photos",
-                  style: GoogleFonts.quicksand(
-                    fontSize: 12,
-                    color: AppTheme.soilBrown.withValues(alpha:0.6),
+                  Text(
+                    "${_images.length} photos",
+                    style: GoogleFonts.quicksand(
+                      fontSize: 12,
+                      color: AppTheme.soilBrown.withValues(alpha:0.6),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const Spacer(),
             const SizedBox(width: 48),
           ],
         ),

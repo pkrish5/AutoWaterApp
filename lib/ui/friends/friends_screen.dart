@@ -50,84 +50,91 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     }
   }
 
-  void _showAddFriendDialog() {
-    final usernameController = TextEditingController();
-    bool isSending = false;
-    
-    showDialog(
-      context: context, 
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Row(children: [
-            const Icon(Icons.person_add, color: AppTheme.leafGreen), 
-            const SizedBox(width: 12),
-            Text('Add Friend', style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold, color: AppTheme.soilBrown))
-          ]),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: usernameController, 
-                decoration: const InputDecoration(
-                  labelText: 'Username',
-                  hintText: 'Enter their username',
-                  prefixIcon: Icon(Icons.alternate_email),
-                ), 
-                textCapitalization: TextCapitalization.none,
-                autocorrect: false,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Enter the exact username of the person you want to add',
-                style: GoogleFonts.quicksand(
-                  fontSize: 12,
-                  color: AppTheme.soilBrown.withValues(alpha:0.6),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: isSending ? null : () => Navigator.pop(ctx), 
-              child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha:0.7)))
+// Replace _showAddFriendDialog in friends_screen.dart with this version
+// Uses username instead of email for cleaner UX
+
+void _showAddFriendDialog() {
+  final usernameController = TextEditingController();
+  bool isSending = false;
+  
+  showDialog(
+    context: context, 
+    builder: (ctx) => StatefulBuilder(
+      builder: (context, setDialogState) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(children: [
+          const Icon(Icons.person_add, color: AppTheme.leafGreen), 
+          const SizedBox(width: 12),
+          Text('Add Friend', style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold, color: AppTheme.soilBrown))
+        ]),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: usernameController, 
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                hintText: 'Enter their @username',
+                prefixIcon: Icon(Icons.alternate_email),
+              ), 
+              textCapitalization: TextCapitalization.none,
+              autocorrect: false,
             ),
-            ElevatedButton(
-              onPressed: isSending ? null : () async {
-                final username = usernameController.text.trim();
-                if (username.isEmpty) {
-                  _showSnackBar('Please enter a username', isError: true);
-                  return;
-                }
-                
-                setDialogState(() => isSending = true);
-                
-                try {
-                  final auth = Provider.of<AuthService>(context, listen: false);
-                  final api = ApiService(auth.idToken!);
-                  await api.sendFriendRequest(userId: auth.userId!, friendUsername: username);
-                  Navigator.pop(ctx);
-                  _showSnackBar('Friend request sent to $username!');
-                  _loadData();
-                } catch (e) { 
-                  setDialogState(() => isSending = false);
-                  _showSnackBar('$e', isError: true); 
-                }
-              }, 
-              child: isSending 
-                ? const SizedBox(
-                    width: 16, 
-                    height: 16, 
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
-                  )
-                : const Text('Send')
+            const SizedBox(height: 8),
+            Text(
+              'Ask your friend for their @username from their profile',
+              style: GoogleFonts.quicksand(
+                fontSize: 12,
+                color: AppTheme.soilBrown.withValues(alpha: 0.6),
+              ),
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: isSending ? null : () => Navigator.pop(ctx), 
+            child: Text('Cancel', style: GoogleFonts.quicksand(color: AppTheme.soilBrown.withValues(alpha: 0.7)))
+          ),
+          ElevatedButton(
+            onPressed: isSending ? null : () async {
+              // Strip @ if user included it
+              String username = usernameController.text.trim();
+              if (username.startsWith('@')) {
+                username = username.substring(1);
+              }
+              
+              if (username.isEmpty) {
+                _showSnackBar('Please enter a username', isError: true);
+                return;
+              }
+              
+              setDialogState(() => isSending = true);
+              
+              try {
+                final auth = Provider.of<AuthService>(context, listen: false);
+                final api = ApiService(auth.idToken!);
+                await api.sendFriendRequest(userId: auth.userId!, friendUsername: username);
+                Navigator.pop(ctx);
+                _showSnackBar('Friend request sent to @$username!');
+                _loadData();
+              } catch (e) { 
+                setDialogState(() => isSending = false);
+                _showSnackBar('$e', isError: true); 
+              }
+            }, 
+            child: isSending 
+              ? const SizedBox(
+                  width: 16, 
+                  height: 16, 
+                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)
+                )
+              : const Text('Send')
+          ),
+        ],
       ),
-    );
-  }
-
+    ),
+  );
+}
   Future<void> _respondToRequest(String requestId, bool accept) async {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);

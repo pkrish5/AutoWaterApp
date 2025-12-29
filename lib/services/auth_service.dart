@@ -1,8 +1,9 @@
 import 'package:amazon_cognito_identity_dart_2/cognito.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-
-import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../core/constants.dart';
+import 'package:flutter/material.dart';
 import 'timezone_service.dart';
 
 class AuthService with ChangeNotifier {
@@ -65,38 +66,76 @@ class AuthService with ChangeNotifier {
   }
 
   // LOGIN
-  Future<String?> login(String email, String password) async {
-    _setLoading(true);
-    _cognitoUser = CognitoUser(email, _userPool);
-    final authDetails = AuthenticationDetails(username: email, password: password);
-    
+  
+Future<String?> login(String emailOrUsername, String password) async {
+  _setLoading(true);
+  
+  String email = emailOrUsername.trim().toLowerCase();
+  
+  // If no @ symbol, treat as username and look up email
+  if (!email.contains('@')) {
     try {
-      _session = await _cognitoUser!.authenticateUser(authDetails);
-      idToken = _session?.getIdToken().getJwtToken();
-      userId = _session?.getIdToken().getSub();
-      userEmail = email;
-      
-      // Detect and store timezone on login
-      await getTimezone();
-      
-      notifyListeners();
-      await _storage.write(key: _keyEmail, value: email);
-      await _storage.write(key: _keyRefreshToken, value: _session!.getRefreshToken()?.getToken());
-
-      return null; // Success
-    } on CognitoUserNewPasswordRequiredException {
-      return "New password required";
-    } on CognitoUserMfaRequiredException {
-      return "MFA required";
-    } on CognitoClientException catch (e) {
-      return e.message ?? "Login failed";
+      final lookupEmail = await _lookupEmailByUsername(email.toLowerCase());
+      if (lookupEmail == null) {
+        _setLoading(false);
+        return "Username not found";
+      }
+      email = lookupEmail;
     } catch (e) {
-      debugPrint("Login Error: $e");
-      return "Invalid email or password";
-    } finally {
       _setLoading(false);
+      return "Failed to look up username";
     }
   }
+  
+  _cognitoUser = CognitoUser(email, _userPool);
+  final authDetails = AuthenticationDetails(username: email, password: password);
+  
+  try {
+    _session = await _cognitoUser!.authenticateUser(authDetails);
+    idToken = _session?.getIdToken().getJwtToken();
+    userId = _session?.getIdToken().getSub();
+    userEmail = email;
+    
+    // Detect and store timezone on login
+    await getTimezone();
+    
+    notifyListeners();
+    await _storage.write(key: _keyEmail, value: email);
+    await _storage.write(key: _keyRefreshToken, value: _session!.getRefreshToken()?.getToken());
+
+    return null; // Success
+  } on CognitoUserNewPasswordRequiredException {
+    return "New password required";
+  } on CognitoUserMfaRequiredException {
+    return "MFA required";
+  } on CognitoClientException catch (e) {
+    return e.message ?? "Login failed";
+  } catch (e) {
+    debugPrint("Login Error: $e");
+    return "Invalid email/username or password";
+  } finally {
+    _setLoading(false);
+  }
+}
+
+// Add this helper method to auth_service.dart:
+
+Future<String?> _lookupEmailByUsername(String username) async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/auth/lookup?username=${Uri.encodeComponent(username)}'),
+    );
+    
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return data['email'];
+    }
+    return null;
+  } catch (e) {
+    debugPrint('Username lookup failed: $e');
+    return null;
+  }
+}
 
   // SIGN UP - Now returns timezone for API call
   Future<Map<String, dynamic>> signUpWithTimezone(String email, String password, String name) async {

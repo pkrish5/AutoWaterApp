@@ -122,7 +122,13 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
-                        return 'Please enter your name';
+                        return 'Please enter a username';
+                      }
+                      if (v.length < 3) {
+                        return 'Username must be at least 3 characters';
+                      }
+                      if (!RegExp(r'^[a-zA-Z0-9_.]+$').hasMatch(v)) {
+                        return 'Only letters, numbers, underscores, and periods allowed';
                       }
                       return null;
                     },
