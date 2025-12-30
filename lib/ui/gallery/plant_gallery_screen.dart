@@ -386,16 +386,22 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
     );
   }
 
-  Widget _buildAnalysisCard(PlantImageAnalysis analysis) {
+  // NEW: Condensed analysis summary card (collapsed by default)
+  Widget _buildAnalysisSummaryCard(PlantImageAnalysis analysis) {
+    final healthColor = _getHealthColor(analysis.healthStatus);
+    final trendIcon = _getTrendIcon(analysis.trend);
+    
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppTheme.softSage.withValues(alpha:0.2),
+        color: healthColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: healthColor.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header row with key metrics
           Row(
             children: [
               const Icon(Icons.psychology, size: 16, color: AppTheme.leafGreen),
@@ -408,26 +414,136 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
                   color: AppTheme.leafGreen,
                 ),
               ),
+              const Spacer(),
+              if (analysis.confidence != null)
+                Text(
+                  '${(analysis.confidence! * 100).round()}% confident',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 10,
+                    color: AppTheme.soilBrown.withValues(alpha: 0.5),
+                  ),
+                ),
             ],
           ),
-          if (analysis.healthStatus != null) ...[
-            const SizedBox(height: 8),
-            Text('Status: ${analysis.healthStatus}'),
-          ],
-          if (analysis.healthScore != null) ...[
-            Text('Health score: ${(analysis.healthScore! * 100).round()}%'),
-          ],
+          const SizedBox(height: 12),
+          
+          // Key metrics row
+          Row(
+            children: [
+              // Health score
+              _MetricChip(
+                icon: Icons.favorite,
+                label: 'Health',
+                value: analysis.healthScore != null 
+                    ? '${(analysis.healthScore! * 100).round()}%' 
+                    : '--',
+                color: healthColor,
+              ),
+              const SizedBox(width: 8),
+              
+              // Status badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: healthColor,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  analysis.healthStatus?.toUpperCase() ?? 'UNKNOWN',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              
+              // Trend indicator
+              if (analysis.trend != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(trendIcon, size: 14, color: _getTrendColor(analysis.trend)),
+                    const SizedBox(width: 2),
+                    Text(
+                      analysis.trend!,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 11,
+                        color: _getTrendColor(analysis.trend),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+          
+          // Issues count (if any)
           if (analysis.issues != null && analysis.issues!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            ...analysis.issues!.map((issue) => Text('• $issue')),
-          ],
-          if (analysis.recommendations != null && analysis.recommendations!.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            ...analysis.recommendations!.map((rec) => Text('✓ $rec')),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(Icons.warning_amber, size: 14, color: AppTheme.terracotta),
+                const SizedBox(width: 4),
+                Text(
+                  '${analysis.issues!.length} issue${analysis.issues!.length > 1 ? 's' : ''} detected',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 12,
+                    color: AppTheme.terracotta,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ],
         ],
       ),
     );
+  }
+
+  // Full expandable analysis card
+  Widget _buildFullAnalysisCard(PlantImageAnalysis analysis) {
+    return _ExpandableAnalysisCard(analysis: analysis);
+  }
+
+  Color _getHealthColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'healthy':
+        return Colors.green;
+      case 'good':
+        return Colors.lightGreen;
+      case 'fair':
+      case 'warning':
+        return Colors.orange;
+      case 'poor':
+      case 'critical':
+        return Colors.red;
+      default:
+        return AppTheme.soilBrown;
+    }
+  }
+
+  IconData _getTrendIcon(String? trend) {
+    switch (trend?.toLowerCase()) {
+      case 'improving':
+        return Icons.trending_up;
+      case 'declining':
+        return Icons.trending_down;
+      default:
+        return Icons.trending_flat;
+    }
+  }
+
+  Color _getTrendColor(String? trend) {
+    switch (trend?.toLowerCase()) {
+      case 'improving':
+        return Colors.green;
+      case 'declining':
+        return Colors.red;
+      default:
+        return AppTheme.soilBrown;
+    }
   }
 
   void _showImageDetail(PlantImage image) {
@@ -472,7 +588,7 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
                     ),
                     if (image.analysis != null) ...[
                       const SizedBox(height: 16),
-                      _buildAnalysisCard(image.analysis!),
+                      _buildFullAnalysisCard(image.analysis!),
                     ],
                   ],
                 ),
@@ -487,6 +603,13 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
                         child: const Text('Close'),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    IconButton(
+                      onPressed: () => _confirmDeleteImage(image),
+                      icon: const Icon(Icons.delete_outline),
+                      color: AppTheme.terracotta,
+                      tooltip: 'Delete photo',
+                    ),
                   ],
                 ),
               ),
@@ -497,11 +620,501 @@ class _PlantGalleryScreenState extends State<PlantGalleryScreen> {
     );
   }
 
+  void _confirmDeleteImage(PlantImage image) {
+    Navigator.pop(context); // Close detail dialog first
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Delete Photo?',
+          style: GoogleFonts.comfortaa(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          'This will permanently delete this photo and its analysis data.',
+          style: GoogleFonts.quicksand(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteImage(image);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppTheme.terracotta),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteImage(PlantImage image) async {
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+
+      final success = await api.deletePlantImage(widget.plant.plantId, image.imageId);
+
+      if (success) {
+        setState(() {
+          _images.removeWhere((img) => img.imageId == image.imageId);
+        });
+        _showSnackBar('Photo deleted');
+      } else {
+        _showSnackBar('Failed to delete photo', isError: true);
+      }
+    } catch (e) {
+      _showSnackBar('Delete failed: $e', isError: true);
+    }
+  }
+
   void _showSnackBar(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
         backgroundColor: isError ? AppTheme.terracotta : AppTheme.leafGreen,
+      ),
+    );
+  }
+}
+
+// Small metric chip widget
+class _MetricChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  const _MetricChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: GoogleFonts.quicksand(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Expandable analysis card with collapsed/expanded states
+class _ExpandableAnalysisCard extends StatefulWidget {
+  final PlantImageAnalysis analysis;
+  const _ExpandableAnalysisCard({required this.analysis});
+
+  @override
+  State<_ExpandableAnalysisCard> createState() => _ExpandableAnalysisCardState();
+}
+
+class _ExpandableAnalysisCardState extends State<_ExpandableAnalysisCard> {
+  bool _isExpanded = false;
+
+  Color _getHealthColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'healthy':
+        return Colors.green;
+      case 'good':
+        return Colors.lightGreen;
+      case 'fair':
+      case 'warning':
+        return Colors.orange;
+      case 'poor':
+      case 'critical':
+        return Colors.red;
+      default:
+        return AppTheme.soilBrown;
+    }
+  }
+
+  IconData _getTrendIcon(String? trend) {
+    switch (trend?.toLowerCase()) {
+      case 'improving':
+        return Icons.trending_up;
+      case 'declining':
+        return Icons.trending_down;
+      default:
+        return Icons.trending_flat;
+    }
+  }
+
+  Color _getTrendColor(String? trend) {
+    switch (trend?.toLowerCase()) {
+      case 'improving':
+        return Colors.green;
+      case 'declining':
+        return Colors.red;
+      default:
+        return AppTheme.soilBrown;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final analysis = widget.analysis;
+    final healthColor = _getHealthColor(analysis.healthStatus);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: healthColor.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: healthColor.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Always visible summary
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.psychology, size: 16, color: healthColor),
+                    const SizedBox(width: 6),
+                    Text(
+                      'AI Health Analysis',
+                      style: GoogleFonts.quicksand(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: healthColor,
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => setState(() => _isExpanded = !_isExpanded),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _isExpanded ? 'Less' : 'More',
+                            style: GoogleFonts.quicksand(
+                              fontSize: 11,
+                              color: AppTheme.leafGreen,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Icon(
+                            _isExpanded ? Icons.expand_less : Icons.expand_more,
+                            size: 16,
+                            color: AppTheme.leafGreen,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                
+                // Key metrics row
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    // Health score
+                    _MetricChip(
+                      icon: Icons.favorite,
+                      label: 'Health',
+                      value: analysis.healthScore != null 
+                          ? '${(analysis.healthScore! * 100).round()}%' 
+                          : '--',
+                      color: healthColor,
+                    ),
+                    
+                    // Status badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: healthColor,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        analysis.healthStatus?.toUpperCase() ?? 'UNKNOWN',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    
+                    // Trend indicator
+                    if (analysis.trend != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getTrendColor(analysis.trend).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_getTrendIcon(analysis.trend), size: 12, color: _getTrendColor(analysis.trend)),
+                            const SizedBox(width: 2),
+                            Text(
+                              analysis.trend!,
+                              style: GoogleFonts.quicksand(
+                                fontSize: 10,
+                                color: _getTrendColor(analysis.trend),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                    // Growth stage
+                    if (analysis.growthStage != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.leafGreen.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          analysis.growthStage!,
+                          style: GoogleFonts.quicksand(
+                            fontSize: 10,
+                            color: AppTheme.leafGreen,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                
+                // Issues preview (collapsed)
+                if (!_isExpanded && analysis.issues != null && analysis.issues!.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Icon(Icons.warning_amber, size: 14, color: AppTheme.terracotta),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          '${analysis.issues!.length} issue${analysis.issues!.length > 1 ? 's' : ''} • Tap "More" for details',
+                          style: GoogleFonts.quicksand(
+                            fontSize: 11,
+                            color: AppTheme.terracotta,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          
+          // Expanded details
+          if (_isExpanded) ...[
+            Divider(height: 1, color: healthColor.withValues(alpha: 0.2)),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Overall notes
+                  if (analysis.overallNotes != null) ...[
+                    Text(
+                      'Summary',
+                      style: GoogleFonts.quicksand(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.soilBrown,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      analysis.overallNotes!,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 12,
+                        color: AppTheme.soilBrown.withValues(alpha: 0.8),
+                        height: 1.4,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  
+                  // Issues
+                  if (analysis.issues != null && analysis.issues!.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Icon(Icons.warning_amber, size: 14, color: AppTheme.terracotta),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Issues Detected',
+                          style: GoogleFonts.quicksand(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.terracotta,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ...analysis.issues!.take(5).map((issue) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('• ', style: TextStyle(color: AppTheme.terracotta, fontSize: 12)),
+                          Expanded(
+                            child: Text(
+                              issue,
+                              style: GoogleFonts.quicksand(
+                                fontSize: 11,
+                                color: AppTheme.soilBrown.withValues(alpha: 0.8),
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                    if (analysis.issues!.length > 5)
+                      Text(
+                        '+${analysis.issues!.length - 5} more issues',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 10,
+                          color: AppTheme.soilBrown.withValues(alpha: 0.5),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                  
+                  // Recommendations
+                  if (analysis.recommendations != null && analysis.recommendations!.isNotEmpty) ...[
+                    Row(
+                      children: [
+                        Icon(Icons.lightbulb_outline, size: 14, color: AppTheme.leafGreen),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Recommendations',
+                          style: GoogleFonts.quicksand(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.leafGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ...analysis.recommendations!.take(3).map((rec) => Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('✓ ', style: TextStyle(color: AppTheme.leafGreen, fontSize: 12)),
+                          Expanded(
+                            child: Text(
+                              rec,
+                              style: GoogleFonts.quicksand(
+                                fontSize: 11,
+                                color: AppTheme.soilBrown.withValues(alpha: 0.8),
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+                    if (analysis.recommendations!.length > 3)
+                      Text(
+                        '+${analysis.recommendations!.length - 3} more recommendations',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 10,
+                          color: AppTheme.soilBrown.withValues(alpha: 0.5),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                  ],
+                  
+                  // Leaf condition
+                  if (analysis.leafCondition != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      'Leaf Condition',
+                      style: GoogleFonts.quicksand(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppTheme.soilBrown,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (analysis.leafCondition!.browning == true)
+                          _ConditionTag('Browning', Colors.brown),
+                        if (analysis.leafCondition!.yellowing == true)
+                          _ConditionTag('Yellowing', Colors.amber),
+                        if (analysis.leafCondition!.spotting == true)
+                          _ConditionTag('Spotting', Colors.orange),
+                        if (analysis.leafCondition!.color != null)
+                          _ConditionTag(analysis.leafCondition!.color!, AppTheme.leafGreen),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ConditionTag extends StatelessWidget {
+  final String label;
+  final Color color;
+  const _ConditionTag(this.label, this.color);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.quicksand(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

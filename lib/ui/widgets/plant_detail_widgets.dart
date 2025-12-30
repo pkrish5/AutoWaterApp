@@ -5,6 +5,11 @@ import '../../models/plant.dart';
 import '../../models/water_level.dart';
 import '../../models/watering_schedule.dart';
 import '../../models/sensor_data.dart';
+import 'package:provider/provider.dart';
+import '../../models/plant_image.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
+
 
 class PlantDetailHeader extends StatelessWidget {
   final Plant plant;
@@ -224,11 +229,12 @@ class QuickActionsRow extends StatelessWidget {
       Row(children: [
         Expanded(child: _QuickActionCard(icon: Icons.photo_camera, label: 'Photo', color: AppTheme.terracotta, onTap: onGallery)),
         const SizedBox(width: 12),
-        Expanded(child: _QuickActionCard(icon: Icons.forum, label: 'Forum', color: AppTheme.mossGreen, onTap: onCommunity ?? () {})),
+        Expanded(child: _QuickActionCard(icon: Icons.info_outline, label: 'Info', color: AppTheme.leafGreen, onTap: onInfo)),
+
       ]),
       const SizedBox(height: 12),
       Row(children: [
-        Expanded(child: _QuickActionCard(icon: Icons.info_outline, label: 'Info', color: AppTheme.leafGreen, onTap: onInfo)),
+        Expanded(child: _QuickActionCard(icon: Icons.forum, label: 'Forum', color: AppTheme.mossGreen, onTap: onCommunity ?? () {})),
         const SizedBox(width: 12),
         Expanded(child: plant.hasDevice 
           ? _QuickActionCard(icon: Icons.water_drop, label: 'Water', color: AppTheme.waterBlue, isLoading: isWatering, onTap: onWater)
@@ -484,5 +490,494 @@ String _sunEmojiFor(String exposure) {
       return '🌑';
     default:
       return '🌞';
+  }
+} // Add this widget to your plant_detail_widgets.dart file
+// This fetches and displays the latest health check analysis on the plant detail screen
+
+
+class LatestHealthCheckCard extends StatefulWidget {
+  final String plantId;
+  final VoidCallback onTapGallery;
+  
+  const LatestHealthCheckCard({
+    super.key,
+    required this.plantId,
+    required this.onTapGallery,
+  });
+
+  @override
+  State<LatestHealthCheckCard> createState() => _LatestHealthCheckCardState();
+}
+
+class _LatestHealthCheckCardState extends State<LatestHealthCheckCard> {
+  PlantImage? _latestImage;
+  bool _isLoading = true;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLatestHealthCheck();
+  }
+
+  Future<void> _loadLatestHealthCheck() async {
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      
+      // Fetch just the first image (most recent)
+      final result = await api.getPlantImagesPaginated(widget.plantId);
+      
+      if (mounted) {
+        setState(() {
+          // Find the first image with analysis
+          _latestImage = result.items.where((img) => img.analysis != null).firstOrNull;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load latest health check: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _hasError = true;
+        });
+      }
+    }
+  }
+
+  Color _getHealthColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'healthy':
+        return Colors.green;
+      case 'good':
+        return Colors.lightGreen;
+      case 'fair':
+      case 'warning':
+        return Colors.orange;
+      case 'poor':
+      case 'critical':
+        return Colors.red;
+      default:
+        return AppTheme.soilBrown;
+    }
+  }
+
+  IconData _getTrendIcon(String? trend) {
+    switch (trend?.toLowerCase()) {
+      case 'improving':
+        return Icons.trending_up;
+      case 'declining':
+        return Icons.trending_down;
+      default:
+        return Icons.trending_flat;
+    }
+  }
+
+  Color _getTrendColor(String? trend) {
+    switch (trend?.toLowerCase()) {
+      case 'improving':
+        return Colors.green;
+      case 'declining':
+        return Colors.red;
+      default:
+        return AppTheme.soilBrown;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isLoading) {
+      return _buildLoadingState();
+    }
+
+    if (_hasError || _latestImage == null || _latestImage!.analysis == null) {
+      return _buildEmptyState();
+    }
+
+    return _buildHealthCard();
+  }
+
+  Widget _buildLoadingState() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppTheme.softSage.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 120,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    color: AppTheme.softSage.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  width: 80,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: AppTheme.softSage.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return GestureDetector(
+      onTap: widget.onTapGallery,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: AppTheme.softSage.withValues(alpha: 0.5),
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.leafGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.add_a_photo,
+                color: AppTheme.leafGreen,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'No Health Check Yet',
+                    style: GoogleFonts.comfortaa(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.soilBrown,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Take a photo to get AI health analysis',
+                    style: GoogleFonts.quicksand(
+                      fontSize: 12,
+                      color: AppTheme.soilBrown.withValues(alpha: 0.6),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              color: AppTheme.leafGreen,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHealthCard() {
+    final analysis = _latestImage!.analysis!;
+    final healthColor = _getHealthColor(analysis.healthStatus);
+
+    return GestureDetector(
+      onTap: widget.onTapGallery,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: healthColor.withValues(alpha: 0.15),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header with image thumbnail
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  // Thumbnail
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Image.network(
+                      _latestImage!.imageUrl,
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(
+                        width: 60,
+                        height: 60,
+                        decoration: BoxDecoration(
+                          color: AppTheme.softSage.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.image, color: AppTheme.soilBrown),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  
+                  // Title and date
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.psychology, size: 16, color: healthColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Latest Health Check',
+                              style: GoogleFonts.comfortaa(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.soilBrown,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _latestImage!.dateLabel,
+                          style: GoogleFonts.quicksand(
+                            fontSize: 12,
+                            color: AppTheme.soilBrown.withValues(alpha: 0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
+                  // Chevron
+                  const Icon(Icons.chevron_right, color: AppTheme.soilBrown),
+                ],
+              ),
+            ),
+            
+            // Divider
+            Divider(height: 1, color: AppTheme.softSage.withValues(alpha: 0.3)),
+            
+            // Health metrics
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Metrics row
+                  Row(
+                    children: [
+                      // Health score with circular indicator
+                      _buildHealthScoreIndicator(analysis.healthScore, healthColor),
+                      const SizedBox(width: 16),
+                      
+                      // Status and trend
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Status badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: healthColor,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                analysis.healthStatus?.toUpperCase() ?? 'UNKNOWN',
+                                style: GoogleFonts.quicksand(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            
+                            // Trend
+                            if (analysis.trend != null)
+                              Row(
+                                children: [
+                                  Icon(
+                                    _getTrendIcon(analysis.trend),
+                                    size: 16,
+                                    color: _getTrendColor(analysis.trend),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Trend: ${analysis.trend}',
+                                    style: GoogleFonts.quicksand(
+                                      fontSize: 12,
+                                      color: _getTrendColor(analysis.trend),
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  
+                  // Issues preview
+                  if (analysis.issues != null && analysis.issues!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.terracotta.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning_amber, size: 16, color: AppTheme.terracotta),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              analysis.issues!.first,
+                              style: GoogleFonts.quicksand(
+                                fontSize: 11,
+                                color: AppTheme.soilBrown.withValues(alpha: 0.8),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (analysis.issues!.length > 1)
+                            Container(
+                              margin: const EdgeInsets.only(left: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppTheme.terracotta.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '+${analysis.issues!.length - 1}',
+                                style: GoogleFonts.quicksand(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppTheme.terracotta,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  
+                  // Top recommendation preview
+                  if (analysis.recommendations != null && analysis.recommendations!.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppTheme.leafGreen.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lightbulb_outline, size: 16, color: AppTheme.leafGreen),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              analysis.recommendations!.first,
+                              style: GoogleFonts.quicksand(
+                                fontSize: 11,
+                                color: AppTheme.soilBrown.withValues(alpha: 0.8),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHealthScoreIndicator(double? score, Color color) {
+    final percentage = score != null ? (score * 100).round() : 0;
+    
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SizedBox(
+            width: 64,
+            height: 64,
+            child: CircularProgressIndicator(
+              value: score ?? 0,
+              strokeWidth: 6,
+              backgroundColor: color.withValues(alpha: 0.2),
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '$percentage',
+                style: GoogleFonts.comfortaa(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                '%',
+                style: GoogleFonts.quicksand(
+                  fontSize: 10,
+                  color: color.withValues(alpha: 0.7),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

@@ -24,6 +24,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   late List<int> _selectedDays;
   late TimeOfDay _timeOfDay;
   bool _isSaving = false;
+  bool _isGenerating = false;
   final List<String> _dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   @override
@@ -36,6 +37,167 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     final timeStr = widget.schedule?.recurringSchedule?.timeOfDay ?? '08:00';
     final parts = timeStr.split(':');
     _timeOfDay = TimeOfDay(hour: int.tryParse(parts[0]) ?? 8, minute: int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0);
+  }
+
+  Future<void> _generateAISchedule() async {
+    setState(() => _isGenerating = true);
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      
+      final result = await api.generateAISchedule(
+        plantId: widget.plant.plantId,
+        userId: auth.userId!,
+      );
+      
+      final schedule = result['schedule'] as Map<String, dynamic>;
+      final recurring = schedule['recurringSchedule'] as Map<String, dynamic>;
+      final daysOfWeek = (recurring['daysOfWeek'] as List).cast<int>();
+      final timeStr = recurring['timeOfDay'] as String;
+      final timeParts = timeStr.split(':');
+      
+      setState(() {
+        _enabled = schedule['enabled'] ?? true;
+        _amountML = schedule['amountML'] ?? 100;
+        _moistureThreshold = schedule['moistureThreshold'] ?? 30;
+        _selectedDays = daysOfWeek;
+        _timeOfDay = TimeOfDay(
+          hour: int.tryParse(timeParts[0]) ?? 8,
+          minute: int.tryParse(timeParts.length > 1 ? timeParts[1] : '0') ?? 0,
+        );
+      });
+      
+      final reasoning = schedule['reasoning'] ?? 'Schedule optimized based on plant care profile and sensor data.';
+      _showAIResultDialog(reasoning, result);
+      
+    } catch (e) {
+      _showSnackBar('$e', isError: true);
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
+    }
+  }
+
+  void _showAIResultDialog(String reasoning, Map<String, dynamic> result) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            const Text('✨', style: TextStyle(fontSize: 24)),
+            const SizedBox(width: 8),
+            Text(
+              'AI Optimization',
+              style: GoogleFonts.comfortaa(
+                fontWeight: FontWeight.bold,
+                color: AppTheme.leafGreen,
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFB74D).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome, color: Color(0xFFFFB74D), size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Schedule optimized!',
+                        style: GoogleFonts.quicksand(
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.soilBrown,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'AI Reasoning:',
+                style: GoogleFonts.quicksand(
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.soilBrown,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                reasoning,
+                style: GoogleFonts.quicksand(
+                  fontSize: 14,
+                  color: AppTheme.soilBrown.withValues(alpha: 0.8),
+                ),
+              ),
+              if (result['maturityAssessment'] != null) ...[
+                const SizedBox(height: 16),
+                _buildInfoChip(
+                  Icons.trending_up,
+                  'Maturity: ${(result['maturityAssessment']['maturityPercent'] as num).toStringAsFixed(0)}%',
+                  AppTheme.leafGreen,
+                ),
+              ],
+              if (result['sensorData'] != null && result['sensorData']['has_data'] == true) ...[
+                const SizedBox(height: 8),
+                _buildInfoChip(
+                  Icons.sensors,
+                  'Current moisture: ${result['sensorData']['current_moisture']}%',
+                  AppTheme.waterBlue,
+                ),
+              ],
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              'Got it!',
+              style: GoogleFonts.quicksand(
+                fontWeight: FontWeight.w600,
+                color: AppTheme.leafGreen,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Flexible(
+            child: Text(
+              text,
+              style: GoogleFonts.quicksand(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _saveSchedule() async {
@@ -63,12 +225,70 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
     return Scaffold(body: LeafBackground(leafCount: 4, child: SafeArea(child: Column(children: [
       _buildHeader(),
       Expanded(child: SingleChildScrollView(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _buildAIOptimizeButton(),
+        const SizedBox(height: 20),
         _buildEnableCard(),
         if (_enabled) ...[const SizedBox(height: 20), _buildDaysSelector(), const SizedBox(height: 20), _buildTimeSelector(),
           const SizedBox(height: 20), _buildAmountSlider(), const SizedBox(height: 20), _buildMoistureThreshold()],
         const SizedBox(height: 32), _buildSaveButton(),
       ]))),
     ]))));
+  }
+
+  Widget _buildAIOptimizeButton() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFFB74D), Color(0xFFFF9800)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFB74D).withValues(alpha: 0.4),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: _isGenerating ? null : _generateAISchedule,
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (_isGenerating)
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                    ),
+                  )
+                else
+                  const Text('✨', style: TextStyle(fontSize: 22)),
+                const SizedBox(width: 10),
+                Text(
+                  _isGenerating ? 'Optimizing...' : 'AI Optimize',
+                  style: GoogleFonts.comfortaa(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildHeader() => Padding(padding: const EdgeInsets.all(16), child: Row(children: [

@@ -479,7 +479,7 @@ class _SubforumScreenState extends State<SubforumScreen> {
       child: Row(
         children: [
           Text(
-            'Posts',
+            'Threads',
             style: GoogleFonts.comfortaa(
               fontSize: 18,
               fontWeight: FontWeight.bold,

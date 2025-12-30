@@ -476,11 +476,17 @@ void _navigateToCommunity() {
                                 QuickActionsRow(plant: _plant, isWatering: _isWatering, onWater: _triggerWatering, onGallery: _navigateToGallery, onInfo: _navigateToPlantInfo, onCommunity: _navigateToCommunity),
                                 const SizedBox(height: 20),
                                 if (_plant.hasDevice) ...[
-                                  SensorDataCard(sensorData: _latestSensor),
+                                  ScheduleCard(schedule: _schedule, onTap: _navigateToSchedule),
                                   const SizedBox(height: 16),
                                   WaterLevelCard(waterLevel: _waterLevel, isRefilling: _isRefilling, onRefill: _refillWater),
                                   const SizedBox(height: 16),
-                                  ScheduleCard(schedule: _schedule, onTap: _navigateToSchedule),
+                                  LatestHealthCheckCard(
+                                    plantId: _plant.plantId,
+                                    onTapGallery: _navigateToGallery,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SensorDataCard(sensorData: _latestSensor),
+                                  
                                 ] else ...[
                                   LinkDeviceCard(onLink: _navigateToLinkDevice),
                                   const SizedBox(height: 16),

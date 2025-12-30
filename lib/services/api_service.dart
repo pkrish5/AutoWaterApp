@@ -853,4 +853,29 @@ Future<bool> checkUsernameAvailability(String username) async {
   }
 }
 
+Future<Map<String, dynamic>> generateAISchedule({
+  required String plantId,
+  required String userId,
+}) async {
+  try {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/plants/$plantId/schedule/generate'),
+      headers: _headers,
+      body: jsonEncode({
+        'plantId': plantId,
+        'userId': userId,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to generate schedule');
+    }
+  } catch (e) {
+    throw Exception('$e');
+  }
+}
+
 }
