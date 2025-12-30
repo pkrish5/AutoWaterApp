@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../models/user.dart';
 import '../widgets/leaf_background.dart';
 import 'friend_garden_screen.dart';
+import 'package:flutter/services.dart';
 
 class FriendsScreen extends StatefulWidget {
   final void Function(int direction)? onEdgeSwipe;

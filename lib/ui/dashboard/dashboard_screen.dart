@@ -4,10 +4,12 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
+import '../../services/streak_service.dart';
 import '../../models/plant.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/loading_indicator.dart';
 import '../widgets/streak_widget.dart';
+import '../widgets/welcome_back_dialog.dart';
 import '../plant_detail/plant_detail_screen.dart';
 import './plant_card.dart';
 import 'add_plant_screen.dart';
@@ -23,6 +25,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late Future<List<Plant>> _plantsFuture;
   final GlobalKey<RefreshIndicatorState> _refreshKey = GlobalKey();
   int _userStreak = 0;
+  bool _hasCheckedDailyStreak = false;
   
   // Room filter
   String? _selectedRoom; // null = All rooms
@@ -39,6 +42,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final api = ApiService(auth.idToken!);
     _plantsFuture = api.getPlants(auth.userId!).then((plants) {
       _updateAvailableRooms(plants);
+      
+      // Check daily streak after plants are loaded
+      if (!_hasCheckedDailyStreak) {
+        _checkDailyStreak(plants);
+      }
+      
       return plants;
     });
     _loadStreak();
@@ -72,6 +81,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       debugPrint('Failed to load streak: $e');
+    }
+  }
+
+  Future<void> _checkDailyStreak(List<Plant> plants) async {
+    _hasCheckedDailyStreak = true;
+    
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
+    final result = await StreakService.checkAndUpdateDailyLogin(
+      currentStreak: _userStreak,
+      updateStreakOnServer: () async {
+        try {
+          return await api.recordDailyLogin(auth.userId!);
+        } catch (e) {
+          debugPrint('Failed to record daily login: $e');
+          return {'streak': _userStreak, 'updated': false};
+        }
+      },
+    );
+    if (result.shouldShowPopup && mounted) {
+      setState(() => _userStreak = result.newStreak);
+      
+      // Show welcome back dialog
+      await showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => WelcomeBackDialog(
+          streak: result.newStreak,
+          streakIncreased: result.streakIncreased,
+          plants: plants,
+          onDismiss: () {},
+        ),
+      );
     }
   }
 

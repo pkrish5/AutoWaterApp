@@ -6,6 +6,7 @@ import '../../models/plant.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
 import '../widgets/leaf_background.dart';
+import 'package:flutter/services.dart';
 
 class LinkDeviceScreen extends StatefulWidget {
   final Plant plant;

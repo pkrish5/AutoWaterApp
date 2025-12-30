@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
 import '../../models/plant_profile.dart';
+import 'package:flutter/services.dart';
 
 class SearchableSpeciesSelector extends StatefulWidget {
   final List<PlantProfile> profiles;

@@ -9,6 +9,8 @@ import '../models/plant_image.dart';
 import '../models/sensor_data.dart';
 import '../models/paginated_images.dart';
 import '../models/plant_profile.dart';
+import '../models/weekly_tasks.dart';
+
 class ApiService {
   final String authToken;
 
@@ -877,5 +879,61 @@ Future<Map<String, dynamic>> generateAISchedule({
     throw Exception('$e');
   }
 }
+Future<Map<String, dynamic>> recordDailyLogin(String userId) async {
+  try {
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/users/$userId/daily-login'),
+      headers: _headers,
+    );
 
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      throw Exception("Failed to record daily login: ${response.statusCode}");
+    }
+  } catch (e) {
+    throw Exception("Connection error: $e");
+  }
+}
+// ==================== WEEKLY TASKS & POINTS ====================
+// Add these methods to your existing ApiService class in lib/services/api_service.dart
+
+// Add this import at the top:
+// import '../models/weekly_tasks.dart';
+
+/// Get current week's tasks for a user
+Future<WeeklyTasks> getWeeklyTasks(String userId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/users/$userId/weekly-tasks'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return WeeklyTasks.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception("Failed to get weekly tasks: ${response.statusCode}");
+    }
+  } catch (e) {
+    throw Exception("Connection error: $e");
+  }
+}
+
+/// Get user's points summary
+Future<UserPoints> getUserPoints(String userId) async {
+  try {
+    final response = await http.get(
+      Uri.parse('${AppConstants.baseUrl}/users/$userId/points'),
+      headers: _headers,
+    );
+
+    if (response.statusCode == 200) {
+      return UserPoints.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception("Failed to get points: ${response.statusCode}");
+    }
+  } catch (e) {
+    throw Exception("Connection error: $e");
+  }
+}
 }

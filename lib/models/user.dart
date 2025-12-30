@@ -1,10 +1,11 @@
 class User {
-  final String userId;
+  final String odIn;
   final String email;
   final String? username;
   final String? _displayNameField;
   final int streak;
   final int longestStreak;
+  final int totalPoints; // NEW: Total points earned
   final UserLocation? location;
   final UserSettings? settings;
   final int? createdAt;
@@ -14,12 +15,13 @@ class User {
   final String? timezone;
 
   User({
-    required this.userId,
+    required this.odIn,
     required this.email,
     this.username,
     String? displayName,
     required this.streak,
     required this.longestStreak,
+    this.totalPoints = 0, // NEW
     this.location,
     this.settings,
     this.createdAt,
@@ -31,12 +33,13 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      userId: json['userId'] ?? '',
+      odIn: json['userId'] ?? '',
       email: json['email'] ?? '',
       username: json['name'] ?? json['username'],
       displayName: json['displayName'],
       streak: json['streak'] ?? 0,
       longestStreak: json['longestStreak'] ?? 0,
+      totalPoints: json['totalPoints'] ?? 0, // NEW
       location: json['location'] != null
           ? UserLocation.fromJson(json['location'])
           : null,
@@ -56,7 +59,17 @@ class User {
     );
   }
 
-  String get displayName => _displayNameField ?? username ?? email.split('@').first;
+  String get odInplay => _displayNameField ?? username ?? email.split('@').first;
+  
+  String get formattedPoints {
+    if (totalPoints >= 1000000) {
+      return '${(totalPoints / 1000000).toStringAsFixed(1)}M';
+    } else if (totalPoints >= 1000) {
+      return '${(totalPoints / 1000).toStringAsFixed(1)}K';
+    }
+    return '$totalPoints';
+  }
+  
   String get timezoneDisplay {
     if (timezone == null) return 'Not set';
     // Convert "America/Chicago" to "Chicago (America)"

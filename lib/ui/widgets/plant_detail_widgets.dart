@@ -205,6 +205,26 @@ class PlantInfoCard extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              if (plant.environment?.type != null) ...[
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Text(
+                    '•',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.soilBrown.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+                Text(
+                  plant.environment!.type == 'outdoor' ? 'Outdoor' : 'Indoor',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 12,
+                    color: AppTheme.soilBrown.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ],
           ),
         ]),

@@ -335,17 +335,25 @@ void _navigateToCommunity() {
   }
 
   Future<void> _updatePlantLocation(RoomLocation location) async {
-    try {
-      final auth = Provider.of<AuthService>(context, listen: false);
-      final api = ApiService(auth.idToken!);
-      
-      final locationData = {
-        'room': location.room,
-        if (location.spot != null && location.spot!.isNotEmpty) 'windowProximity': location.spot,
-        if (location.sunExposure != null) 'sunExposure': location.sunExposure,
-      };
-      
-      await api.updatePlant(plantId: _plant.plantId, location: locationData);
+  try {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
+    
+    // Infer indoor/outdoor from room
+    const outdoorRooms = ['Balcony', 'Patio', 'Back Garden', 'Front Yard', 'Greenhouse'];
+    final isOutdoor = outdoorRooms.contains(location.room);
+    
+    final locationData = {
+      'room': location.room,
+      if (location.spot != null && location.spot!.isNotEmpty) 'windowProximity': location.spot,
+      if (location.sunExposure != null) 'sunExposure': location.sunExposure,
+    };
+    
+    await api.updatePlant(
+      plantId: _plant.plantId,
+      location: locationData,
+      environment: {'type': isOutdoor ? 'outdoor' : 'indoor'},
+    );
       
       setState(() {
         _plant = Plant(
@@ -358,7 +366,7 @@ void _navigateToCommunity() {
           streak: _plant.streak,
           currentHealth: _plant.currentHealth,
           environment: PlantEnvironment(
-            type: _plant.environment?.type ?? 'indoor',
+            type: isOutdoor ? 'outdoor' : 'indoor',
             location: PlantLocation(
               room: location.room,
               windowProximity: location.spot,

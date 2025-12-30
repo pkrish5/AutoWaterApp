@@ -8,6 +8,7 @@ import '../../models/plant_profile.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/room_selector.dart';
 import '../widgets/searchable_species_selector.dart';
+import 'package:flutter/services.dart';
 
 class AddPlantScreen extends StatefulWidget {
   const AddPlantScreen({super.key});

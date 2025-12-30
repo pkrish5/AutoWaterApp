@@ -5,8 +5,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'core/theme.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/streak_service.dart';
 import 'ui/auth/login_screen.dart';
 import 'ui/home/home_screen.dart';
+import 'package:flutter/material.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,6 +26,9 @@ void main() async {
 
   // Initialize notification service
   await NotificationService().initialize();
+  
+  // Reset daily streak flag if needed
+  await StreakService.resetDailyFlag();
   
   runApp(
     ChangeNotifierProvider(
@@ -59,9 +64,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-    Provider.of<AuthService>(context, listen: false).tryRestoreSession();
-  });
-
+      Provider.of<AuthService>(context, listen: false).tryRestoreSession();
+    });
   }
 
   Future<void> _registerPushToken() async {
@@ -80,8 +84,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
     if (!auth.isInitialized) {
-    return const Scaffold(body: Center(child: CircularProgressIndicator()));
-  }
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    
     // Register token when user logs in
     if (auth.isAuthenticated) {
       _registerPushToken();
