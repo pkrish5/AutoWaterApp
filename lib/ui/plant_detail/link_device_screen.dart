@@ -7,7 +7,7 @@ import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
 import '../widgets/leaf_background.dart';
 import 'package:flutter/services.dart';
-
+import '../../services/care_reminder_service.dart';
 class LinkDeviceScreen extends StatefulWidget {
   final Plant plant;
 
@@ -45,6 +45,21 @@ class _LinkDeviceScreenState extends State<LinkDeviceScreen> {
         userId: auth.userId!,
         esp32DeviceId: deviceId,
       );
+      final reminderService = CareReminderService();
+      await reminderService.initialize();
+      // Create updated plant with device linked
+      final updatedPlant = Plant(
+        plantId: widget.plant.plantId,
+        userId: widget.plant.userId,
+        nickname: widget.plant.nickname,
+        species: widget.plant.species,
+        esp32DeviceId: deviceId,  // Now has device
+        waterPercentage: widget.plant.waterPercentage,
+        streak: widget.plant.streak,
+        addedAt: widget.plant.addedAt,
+        speciesInfo: widget.plant.speciesInfo,
+      );
+      await reminderService.updateRemindersForSensorChange(updatedPlant);
 
       if (mounted) {
         Navigator.pop(context, true);

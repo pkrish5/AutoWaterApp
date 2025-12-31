@@ -5,6 +5,7 @@ import '../../core/theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
 import '../../services/streak_service.dart';
+import '../../services/care_reminder_service.dart';
 import '../../models/plant.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/loading_indicator.dart';
@@ -13,6 +14,7 @@ import '../widgets/welcome_back_dialog.dart';
 import '../plant_detail/plant_detail_screen.dart';
 import './plant_card.dart';
 import 'add_plant_screen.dart';
+import '../reminders/care_reminders_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -25,6 +27,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late Future<List<Plant>> _plantsFuture;
   final GlobalKey<RefreshIndicatorState> _refreshKey = GlobalKey();
   int _userStreak = 0;
+  int _reminderCount = 0;
   bool _hasCheckedDailyStreak = false;
   
   // Room filter
@@ -35,6 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _loadReminderCount();
   }
 
   void _loadData() {
@@ -51,6 +55,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return plants;
     });
     _loadStreak();
+  }
+
+  Future<void> _loadReminderCount() async {
+    final service = CareReminderService();
+    await service.initialize();
+    if (mounted) {
+      setState(() {
+        _reminderCount = service.actionableCount;
+      });
+    }
   }
 
   void _updateAvailableRooms(List<Plant> plants) {
@@ -121,6 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _loadData();
     });
+    _loadReminderCount();
   }
 
   void _navigateToAddPlant() async {
@@ -148,6 +163,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (result?.needsRefresh == true) {
       _refreshPlants();
     }
+  }
+
+  void _navigateToReminders() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CareRemindersScreen()),
+    ).then((_) => _loadReminderCount());
   }
 
   @override
@@ -188,7 +210,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       if (plants.isEmpty && _selectedRoom != null) {
                         return _buildNoRoomPlantsState();
                       }
-
+                      
                       return GridView.builder(
                         padding: const EdgeInsets.all(20),
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -266,6 +288,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ),
+          // Reminder bell icon
+          GestureDetector(
+            onTap: _navigateToReminders,
+            child: Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.leafGreen.withValues(alpha: 0.1),
+                    blurRadius: 10,
+                  ),
+                ],
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Icon(
+                    _reminderCount > 0 ? Icons.notifications_active : Icons.notifications_none,
+                    color: _reminderCount > 0 ? AppTheme.terracotta : AppTheme.soilBrown.withValues(alpha: 0.6),
+                    size: 24,
+                  ),
+                  if (_reminderCount > 0)
+                    Positioned(
+                      right: -6,
+                      top: -6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.terracotta,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 18),
+                        child: Text(
+                          _reminderCount > 9 ? '9+' : '$_reminderCount',
+                          style: GoogleFonts.quicksand(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
           AnimatedStreakWidget(
             streak: _userStreak,
             showLabel: false,

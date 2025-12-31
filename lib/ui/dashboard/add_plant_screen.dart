@@ -4,11 +4,12 @@ import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
+import '../../services/care_reminder_service.dart';
 import '../../models/plant_profile.dart';
+import '../../models/plant.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/room_selector.dart';
 import '../widgets/searchable_species_selector.dart';
-import 'package:flutter/services.dart';
 
 class AddPlantScreen extends StatefulWidget {
   const AddPlantScreen({super.key});
@@ -114,7 +115,7 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
         };
       }
 
-      await api.addPlant(
+      final result = await api.addPlant(
         userId: auth.userId!,
         nickname: _nameController.text.trim(),
         species: species,
@@ -123,18 +124,44 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
         speciesInfo: speciesInfo,
       );
 
+      // Auto-create care reminders for the new plant
+      // result is a Plant object from the API
+      if (result != null) {
+        await _createRemindersForNewPlant(
+          plant: result,
+          hasDevice: deviceId.isNotEmpty,
+          waterFrequencyDays: _selectedProfile?.careProfile?.watering.frequencyDays ?? 7,
+        );
+      }
+
       if (mounted) {
         Navigator.pop(context, true);
         _showSnackBar(
           deviceId.isNotEmpty 
               ? '${_nameController.text} added with device!'
-              : '${_nameController.text} added! Link a device later to enable watering.',
+              : '${_nameController.text} added with care reminders!',
         );
       }
     } catch (e) {
       _showSnackBar('Failed to add plant: $e', isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _createRemindersForNewPlant({
+    required Plant plant,
+    required bool hasDevice,
+    required int waterFrequencyDays,
+  }) async {
+    try {
+      final reminderService = CareReminderService();
+      await reminderService.initialize();
+      await reminderService.addDefaultRemindersForPlant(plant);
+      debugPrint('✅ Created care reminders for ${plant.nickname}');
+    } catch (e) {
+      debugPrint('Failed to create reminders: $e');
+      // Don't fail the whole operation if reminders fail
     }
   }
 
@@ -355,6 +382,29 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
           _buildCareRow(Icons.wb_sunny, care.light.type.replaceAll('-', ' ').toUpperCase()),
           _buildCareRow(Icons.thermostat, '${care.environment.tempMin}-${care.environment.tempMax}°C'),
           _buildCareRow(Icons.water, '${care.environment.humidityMin}-${care.environment.humidityMax}% humidity'),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.leafGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.notifications_active, size: 14, color: AppTheme.leafGreen),
+                const SizedBox(width: 6),
+                Text(
+                  'Care reminders will be set automatically',
+                  style: GoogleFonts.quicksand(
+                    fontSize: 11,
+                    color: AppTheme.leafGreen,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

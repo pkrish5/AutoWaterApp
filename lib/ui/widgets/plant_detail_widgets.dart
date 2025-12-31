@@ -239,9 +239,10 @@ class QuickActionsRow extends StatelessWidget {
   final VoidCallback onGallery;
   final VoidCallback onInfo;
   final VoidCallback? onCommunity;
+  final VoidCallback? onCare;  // ADD THIS
 
   const QuickActionsRow({super.key, required this.plant, required this.isWatering, 
-    required this.onWater, required this.onGallery, required this.onInfo, this.onCommunity});
+    required this.onWater, required this.onGallery, required this.onInfo, this.onCommunity, this.onCare});  // ADD onCare
 
   @override
   Widget build(BuildContext context) {
@@ -258,12 +259,11 @@ class QuickActionsRow extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: plant.hasDevice 
           ? _QuickActionCard(icon: Icons.water_drop, label: 'Water', color: AppTheme.waterBlue, isLoading: isWatering, onTap: onWater)
-          : _QuickActionCard(icon: Icons.eco, label: 'Care', color: AppTheme.softSage, onTap: onInfo)),
+          : _QuickActionCard(icon: Icons.eco, label: 'Care', color: AppTheme.waterBlue, onTap: onCare ?? onInfo)),
       ]),
     ]);
   }
 }
-
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;

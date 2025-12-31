@@ -8,8 +8,7 @@ import 'services/notification_service.dart';
 import 'services/streak_service.dart';
 import 'ui/auth/login_screen.dart';
 import 'ui/home/home_screen.dart';
-import 'package:flutter/material.dart';
-
+import './services/care_reminder_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -26,7 +25,7 @@ void main() async {
 
   // Initialize notification service
   await NotificationService().initialize();
-  
+  await CareReminderService().initialize();
   // Reset daily streak flag if needed
   await StreakService.resetDailyFlag();
   

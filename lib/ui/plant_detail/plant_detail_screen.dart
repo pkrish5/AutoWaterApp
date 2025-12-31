@@ -19,6 +19,10 @@ import '../widgets/searchable_species_selector.dart';
 import '../../models/plant_profile.dart';
 import '../community/subforum_screen.dart';
 import '../../models/forum.dart';
+import '../../services/care_reminder_service.dart';
+import '../widgets/plant_care_card.dart';
+import '../reminders/plant_care_schedule_screen.dart';
+
 
 class PlantDetailResult {
   final bool needsRefresh;
@@ -56,6 +60,14 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     _plant = widget.plant;
     _loadData();
   }
+  void _navigateToCareSchedule() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PlantCareScheduleScreen(plant: _plant),
+    ),
+  );
+}
 void _navigateToCommunity() {
   // Use scientific name as subforumId (matches your DynamoDB structure)
   final scientificName = _plant.speciesInfo?.scientificName ?? _plant.species;
@@ -268,6 +280,9 @@ void _navigateToCommunity() {
       _showSnackBar('Device unlinked successfully');
       await _refreshPlant();
       await _loadData();
+      final reminderService = CareReminderService();
+      await reminderService.initialize();
+      await reminderService.updateRemindersForSensorChange(_plant);
     } catch (e) {
       _showSnackBar('Failed: $e', isError: true);
     }
@@ -481,7 +496,15 @@ void _navigateToCommunity() {
                               children: [
                                 PlantInfoCard(plant: _plant, onEdit: _showEditPlantDialog, onEditLocation: _showEditLocationDialog),
                                 const SizedBox(height: 20),
-                                QuickActionsRow(plant: _plant, isWatering: _isWatering, onWater: _triggerWatering, onGallery: _navigateToGallery, onInfo: _navigateToPlantInfo, onCommunity: _navigateToCommunity),
+                                QuickActionsRow(
+                                  plant: _plant, 
+                                  isWatering: _isWatering, 
+                                  onWater: _triggerWatering, 
+                                  onGallery: _navigateToGallery, 
+                                  onInfo: _navigateToPlantInfo, 
+                                  onCommunity: _navigateToCommunity,
+                                  onCare: _navigateToCareSchedule,  // ADD THIS
+                                ),
                                 const SizedBox(height: 20),
                                 if (_plant.hasDevice) ...[
                                   ScheduleCard(schedule: _schedule, onTap: _navigateToSchedule),
@@ -496,9 +519,9 @@ void _navigateToCommunity() {
                                   SensorDataCard(sensorData: _latestSensor),
                                   
                                 ] else ...[
-                                  LinkDeviceCard(onLink: _navigateToLinkDevice),
+                                  PlantCareCard(plant: _plant),
                                   const SizedBox(height: 16),
-                                  ManualCareCard(plant: _plant),
+                                  LinkDeviceCard(onLink: _navigateToLinkDevice),
                                 ],
                                 const SizedBox(height: 80),
                               ],
