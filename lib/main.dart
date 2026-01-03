@@ -6,9 +6,11 @@ import 'core/theme.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/streak_service.dart';
+import 'services/care_reminder_service.dart';
+import 'services/api_service.dart';
 import 'ui/auth/login_screen.dart';
 import 'ui/home/home_screen.dart';
-import './services/care_reminder_service.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -25,7 +27,10 @@ void main() async {
 
   // Initialize notification service
   await NotificationService().initialize();
+  
+  // Initialize care reminder service (without API - will sync when user logs in)
   await CareReminderService().initialize();
+  
   // Reset daily streak flag if needed
   await StreakService.resetDailyFlag();
   
@@ -79,6 +84,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
   }
 
+  Future<void> _initializeCareReminders() async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    
+    if (auth.isAuthenticated && auth.userId != null && auth.idToken != null) {
+      final api = ApiService(auth.idToken!);
+      await CareReminderService().initialize(
+        api: api,
+        userId: auth.userId,
+      );
+      debugPrint('✅ Care reminders synced with server');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
@@ -86,9 +104,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     
-    // Register token when user logs in
+    // Register token and sync reminders when user logs in
     if (auth.isAuthenticated) {
       _registerPushToken();
+      _initializeCareReminders();
       return const HomeScreen();
     }
     return const LoginScreen();

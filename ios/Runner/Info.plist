@@ -32,6 +32,17 @@
 	<string>Select photos of your plants from your gallery.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to measure light levels for your plants</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed for AR measurement of your plant pot</string>
+
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Microphone may be used for AR features</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>arkit</string>
+	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

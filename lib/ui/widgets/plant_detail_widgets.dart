@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme.dart';
-import '../../models/plant.dart';
+import '../../models/plant.dart' hide PlantMeasurements;
 import '../../models/water_level.dart';
 import '../../models/watering_schedule.dart';
 import '../../models/sensor_data.dart';
@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 import '../../models/plant_image.dart';
 import '../../services/auth_service.dart';
 import '../../services/api_service.dart';
-
+import '../../models/plant_measurements.dart';
 
 class PlantDetailHeader extends StatelessWidget {
   final Plant plant;
@@ -239,31 +239,71 @@ class QuickActionsRow extends StatelessWidget {
   final VoidCallback onGallery;
   final VoidCallback onInfo;
   final VoidCallback? onCommunity;
-  final VoidCallback? onCare;  // ADD THIS
+  final VoidCallback? onCare;
 
-  const QuickActionsRow({super.key, required this.plant, required this.isWatering, 
-    required this.onWater, required this.onGallery, required this.onInfo, this.onCommunity, this.onCare});  // ADD onCare
+  const QuickActionsRow({
+    super.key,
+    required this.plant,
+    required this.isWatering,
+    required this.onWater,
+    required this.onGallery,
+    required this.onInfo,
+    this.onCommunity,
+    this.onCare,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(children: [
-      Row(children: [
-        Expanded(child: _QuickActionCard(icon: Icons.photo_camera, label: 'Photo', color: AppTheme.terracotta, onTap: onGallery)),
-        const SizedBox(width: 12),
-        Expanded(child: _QuickActionCard(icon: Icons.info_outline, label: 'Info', color: AppTheme.leafGreen, onTap: onInfo)),
-
-      ]),
-      const SizedBox(height: 12),
-      Row(children: [
-        Expanded(child: _QuickActionCard(icon: Icons.forum, label: 'Forum', color: AppTheme.mossGreen, onTap: onCommunity ?? () {})),
-        const SizedBox(width: 12),
-        Expanded(child: plant.hasDevice 
-          ? _QuickActionCard(icon: Icons.water_drop, label: 'Water', color: AppTheme.waterBlue, isLoading: isWatering, onTap: onWater)
-          : _QuickActionCard(icon: Icons.eco, label: 'Care', color: AppTheme.waterBlue, onTap: onCare ?? onInfo)),
-      ]),
-    ]);
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickActionCard(
+            icon: Icons.photo_camera,
+            label: 'Photo',
+            color: AppTheme.terracotta,
+            onTap: onGallery,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickActionCard(
+            icon: Icons.info_outline,
+            label: 'Info',
+            color: AppTheme.leafGreen,
+            onTap: onInfo,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickActionCard(
+            icon: Icons.forum,
+            label: 'Forum',
+            color: AppTheme.mossGreen,
+            onTap: onCommunity ?? () {},
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: plant.hasDevice
+              ? _QuickActionCard(
+                  icon: Icons.water_drop,
+                  label: 'Water',
+                  color: AppTheme.waterBlue,
+                  isLoading: isWatering,
+                  onTap: onWater,
+                )
+              : _QuickActionCard(
+                  icon: Icons.eco,
+                  label: 'Care',
+                  color: AppTheme.waterBlue,
+                  onTap: onCare ?? onInfo,
+                ),
+        ),
+      ],
+    );
   }
 }
+
 class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -271,21 +311,367 @@ class _QuickActionCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool isLoading;
 
-  const _QuickActionCard({required this.icon, required this.label, required this.color, required this.onTap, this.isLoading = false});
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.isLoading = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(onTap: isLoading ? null : onTap,
-      child: Container(padding: const EdgeInsets.symmetric(vertical: 16),
-        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(color: color.withValues(alpha:0.3), blurRadius: 10, offset: const Offset(0, 4))]),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          if (isLoading) const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, valueColor: AlwaysStoppedAnimation(Colors.white)))
-          else Icon(icon, color: Colors.white),
-          const SizedBox(width: 8),
-          Text(label, style: GoogleFonts.quicksand(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white)),
-        ]),
+    return GestureDetector(
+      onTap: isLoading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha:0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isLoading)
+              const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+              )
+            else
+              Icon(icon, color: Colors.white, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: GoogleFonts.quicksand(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class PlantToolsRow extends StatelessWidget {
+  final Plant plant;
+  final VoidCallback onLightMeter;
+  final VoidCallback onPotMeter;
+
+  const PlantToolsRow({
+    super.key,
+    required this.plant,
+    required this.onLightMeter,
+    required this.onPotMeter,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ToolCard(
+            icon: Icons.wb_sunny_outlined,
+            title: 'Lux',
+            subtitle: 'Measure',
+            color: AppTheme.sunYellow,
+            onTap: onLightMeter,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _ToolCard(
+            icon: Icons.straighten,
+            title: 'Size',
+            subtitle: plant.measurements?.hasMeasurements == true
+                ? plant.measurements!.potSizeFormatted
+                : 'Measure',
+            color: AppTheme.mossGreen,
+            onTap: onPotMeter,
+            badge: plant.measurements?.hasMeasurements == true ? '✓' : null,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ToolCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+  final String? badge;
+
+  const _ToolCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+    this.badge,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha:0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withValues(alpha:0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha:0.15),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.quicksand(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.soilBrown,
+                        ),
+                      ),
+                      if (badge != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            badge!,
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.quicksand(
+                      fontSize: 11,
+                      color: AppTheme.soilBrown.withValues(alpha:0.6),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+            Icon(
+              Icons.chevron_right,
+              color: color.withValues(alpha:0.5),
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class MeasurementsCard extends StatelessWidget {
+  final PlantMeasurements measurements;
+  final VoidCallback onTap;
+
+  const MeasurementsCard({
+    super.key,
+    required this.measurements,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.straighten, color: AppTheme.mossGreen, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Pot Measurements',
+                  style: GoogleFonts.comfortaa(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.soilBrown,
+                  ),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.edit,
+                  size: 16,
+                  color: AppTheme.soilBrown.withValues(alpha:0.4),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _MeasurementItem(
+                    icon: Icons.height,
+                    label: 'Height',
+                    value: '${measurements.potHeightInches?.toStringAsFixed(1) ?? "--"}"',
+                  ),
+                ),
+                Expanded(
+                  child: _MeasurementItem(
+                    icon: Icons.width_normal,
+                    label: 'Width',
+                    value: '${measurements.potWidthInches?.toStringAsFixed(1) ?? "--"}"',
+                  ),
+                ),
+                Expanded(
+                  child: _MeasurementItem(
+                    icon: Icons.water_drop,
+                    label: 'Volume',
+                    value: measurements.volumeFormatted,
+                    highlight: true,
+                  ),
+                ),
+              ],
+            ),
+            if (measurements.plantHeightInches != null) ...[
+              const Divider(height: 20),
+              _MeasurementItem(
+                icon: Icons.eco,
+                label: 'Plant Height',
+                value: measurements.plantHeightFormatted,
+                horizontal: true,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MeasurementItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool highlight;
+  final bool horizontal;
+
+  const _MeasurementItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.highlight = false,
+    this.horizontal = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (horizontal) {
+      return Row(
+        children: [
+          Icon(
+            icon,
+            size: 18,
+            color: AppTheme.leafGreen,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: GoogleFonts.quicksand(
+              fontSize: 13,
+              color: AppTheme.soilBrown.withValues(alpha:0.7),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: GoogleFonts.comfortaa(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.leafGreen,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        Icon(
+          icon,
+          size: 20,
+          color: highlight ? AppTheme.waterBlue : AppTheme.soilBrown.withValues(alpha:0.5),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.comfortaa(
+            fontSize: highlight ? 16 : 14,
+            fontWeight: FontWeight.bold,
+            color: highlight ? AppTheme.waterBlue : AppTheme.soilBrown,
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.quicksand(
+            fontSize: 11,
+            color: AppTheme.soilBrown.withValues(alpha:0.5),
+          ),
+        ),
+      ],
     );
   }
 }

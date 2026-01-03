@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../models/care_reminder.dart';
 import '../../models/plant.dart';
 import '../../services/care_reminder_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
 
 class AddReminderSheet extends StatefulWidget {
   final Plant plant;
@@ -30,11 +33,18 @@ class _AddReminderSheetState extends State<AddReminderSheet> {
   final _customLabelController = TextEditingController();
   final _notesController = TextEditingController();
   bool _isLoading = false;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
     _frequencyDays = _selectedType.defaultFrequencyDays;
+    
+    // If plant has a device, default to refill instead of water
+    if (widget.plant.hasDevice) {
+      _selectedType = CareType.refill;
+      _frequencyDays = CareType.refill.defaultFrequencyDays;
+    }
   }
 
   @override
@@ -45,11 +55,24 @@ class _AddReminderSheetState extends State<AddReminderSheet> {
   }
 
   Future<void> _save() async {
-    setState(() => _isLoading = true);
+    // Validate custom label if needed
+    if (_selectedType == CareType.custom && _customLabelController.text.trim().isEmpty) {
+      setState(() => _error = 'Please enter a task name');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
+      // Get auth context
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      
       final service = CareReminderService();
-      await service.initialize();
+      await service.initialize(api: api, userId: auth.userId!);
 
       final reminder = await service.addReminder(
         plantId: widget.plant.plantId,
@@ -71,15 +94,11 @@ class _AddReminderSheetState extends State<AddReminderSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to add reminder: $e'),
-            backgroundColor: AppTheme.terracotta,
-          ),
-        );
+        setState(() {
+          _error = e.toString().replaceAll('Exception: ', '');
+          _isLoading = false;
+        });
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -146,6 +165,33 @@ class _AddReminderSheetState extends State<AddReminderSheet> {
             ),
           ),
 
+          // Error message
+          if (_error != null)
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppTheme.terracotta.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.terracotta.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: AppTheme.terracotta, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _error!,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 13,
+                        color: AppTheme.terracotta,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Content
           Expanded(
             child: SingleChildScrollView(
@@ -153,6 +199,8 @@ class _AddReminderSheetState extends State<AddReminderSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  const SizedBox(height: 8),
+                  
                   // Care type selector
                   Text(
                     'What type of care?',
@@ -178,7 +226,13 @@ class _AddReminderSheetState extends State<AddReminderSheet> {
                         labelText: 'Custom Task Name',
                         hintText: 'e.g., Check for pests',
                         prefixIcon: const Icon(Icons.edit),
+                        errorText: _error != null && _selectedType == CareType.custom 
+                            ? null // Error shown above
+                            : null,
                       ),
+                      onChanged: (_) {
+                        if (_error != null) setState(() => _error = null);
+                      },
                     ),
                   ],
 
@@ -270,11 +324,17 @@ class _AddReminderSheetState extends State<AddReminderSheet> {
 
   Widget _buildTypeChip(CareType type) {
     final isSelected = _selectedType == type;
+    
+    // Hide water option for plants with devices, hide refill for plants without
+    if (type == CareType.water && widget.plant.hasDevice) return const SizedBox.shrink();
+    if (type == CareType.refill && !widget.plant.hasDevice) return const SizedBox.shrink();
+    
     return GestureDetector(
       onTap: () {
         setState(() {
           _selectedType = type;
           _frequencyDays = type.defaultFrequencyDays;
+          _error = null;
         });
       },
       child: AnimatedContainer(

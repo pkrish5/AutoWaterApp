@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../models/plant.dart';
 import '../../models/care_reminder.dart';
 import '../../services/care_reminder_service.dart';
+import '../../services/auth_service.dart';
+import '../../services/api_service.dart';
 import '../widgets/leaf_background.dart';
 import 'add_reminder_sheet.dart';
 
@@ -20,6 +23,7 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
   final _service = CareReminderService();
   List<CareReminder> _reminders = [];
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -28,12 +32,32 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
   }
 
   Future<void> _loadReminders() async {
-    await _service.initialize();
-    if (mounted) {
-      setState(() {
-        _reminders = _service.getRemindersForPlant(widget.plant.plantId);
-        _isLoading = false;
-      });
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      // Initialize with auth context
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      
+      await _service.initialize(api: api, userId: auth.userId!);
+      
+      if (mounted) {
+        setState(() {
+          _reminders = _service.getRemindersForPlant(widget.plant.plantId);
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load reminders: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -52,7 +76,16 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
         );
       }
     } catch (e) {
-      debugPrint('Failed to complete reminder: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: $e'),
+            backgroundColor: AppTheme.terracotta,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
     }
   }
 
@@ -78,8 +111,19 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
     );
 
     if (confirm == true) {
-      await _service.deleteReminder(reminder.id);
-      _loadReminders();
+      try {
+        await _service.deleteReminder(reminder.id);
+        _loadReminders();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to delete: $e'),
+              backgroundColor: AppTheme.terracotta,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -91,17 +135,33 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
   }
 
   void _addDefaultReminders() async {
-    await _service.addDefaultRemindersForPlant(widget.plant);
-    _loadReminders();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Default care reminders added!'),
-          backgroundColor: AppTheme.leafGreen,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+    setState(() => _isLoading = true);
+    
+    try {
+      await _service.addDefaultRemindersForPlant(widget.plant);
+      _loadReminders();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Default care reminders added!'),
+            backgroundColor: AppTheme.leafGreen,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to add defaults: $e'),
+            backgroundColor: AppTheme.terracotta,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
     }
   }
 
@@ -123,60 +183,66 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : RefreshIndicator(
-                        onRefresh: _loadReminders,
-                        child: SingleChildScrollView(
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Care instructions card
-                              _buildCareInstructionsCard(rec),
-                              const SizedBox(height: 20),
+                    : _error != null
+                        ? _buildErrorState()
+                        : RefreshIndicator(
+                            onRefresh: _loadReminders,
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Care instructions card
+                                  _buildCareInstructionsCard(rec),
+                                  const SizedBox(height: 20),
 
-                              // Actionable reminders (needs attention)
-                              if (actionable.isNotEmpty) ...[
-                                _buildSectionHeader(
-                                  'Needs Attention',
-                                  Icons.priority_high,
-                                  AppTheme.terracotta,
-                                  count: actionable.length,
-                                ),
-                                const SizedBox(height: 12),
-                                ...actionable.map((r) => _buildReminderCard(r, isActionable: true)),
-                                const SizedBox(height: 20),
-                              ],
+                                  // Actionable reminders (needs attention)
+                                  if (actionable.isNotEmpty) ...[
+                                    _buildSectionHeader(
+                                      'Needs Attention',
+                                      Icons.priority_high,
+                                      AppTheme.terracotta,
+                                      count: actionable.length,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ...actionable.map((r) => _buildReminderCard(r, isActionable: true)),
+                                    const SizedBox(height: 20),
+                                  ],
 
-                              // Upcoming reminders
-                              _buildSectionHeader(
-                                'Care Schedule',
-                                Icons.calendar_today,
-                                AppTheme.leafGreen,
+                                  // Upcoming reminders
+                                  if (upcoming.isNotEmpty) ...[
+                                    _buildSectionHeader(
+                                      'Upcoming',
+                                      Icons.schedule,
+                                      AppTheme.leafGreen,
+                                      count: upcoming.length,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ...upcoming.map((r) => _buildReminderCard(r)),
+                                  ],
+
+                                  // Empty state with add defaults button
+                                  if (_reminders.isEmpty) _buildEmptyState(),
+
+                                  const SizedBox(height: 100), // Space for FAB
+                                ],
                               ),
-                              const SizedBox(height: 12),
-
-                              if (_reminders.isEmpty)
-                                _buildEmptyState()
-                              else if (upcoming.isEmpty && actionable.isNotEmpty)
-                                _buildAllCaughtUp()
-                              else
-                                ...upcoming.map((r) => _buildReminderCard(r, isActionable: false)),
-
-                              const SizedBox(height: 80),
-                            ],
+                            ),
                           ),
-                        ),
-                      ),
               ),
             ],
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: _addReminder,
         backgroundColor: AppTheme.leafGreen,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: Text(
+          'Add Reminder',
+          style: GoogleFonts.quicksand(fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -211,7 +277,7 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.plant.nickname,
+                  'Care Schedule',
                   style: GoogleFonts.comfortaa(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -219,9 +285,9 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
                   ),
                 ),
                 Text(
-                  'Care Schedule',
+                  widget.plant.nickname,
                   style: GoogleFonts.quicksand(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: AppTheme.soilBrown.withValues(alpha: 0.7),
                   ),
                 ),
@@ -233,76 +299,106 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
     );
   }
 
-  Widget _buildCareInstructionsCard(WateringRecommendation rec) {
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('😵', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load reminders',
+              style: GoogleFonts.comfortaa(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.soilBrown,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error ?? 'Unknown error',
+              style: GoogleFonts.quicksand(
+                fontSize: 14,
+                color: AppTheme.soilBrown.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadReminders,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCareInstructionsCard(dynamic rec) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.leafGreen.withValues(alpha: 0.1),
+            AppTheme.softSage.withValues(alpha: 0.2),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: AppTheme.leafGreen.withValues(alpha: 0.08),
-            blurRadius: 10,
-          ),
-        ],
+        border: Border.all(color: AppTheme.leafGreen.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.tips_and_updates, color: AppTheme.sunYellow, size: 20),
+              const Icon(Icons.eco, color: AppTheme.leafGreen, size: 20),
               const SizedBox(width: 8),
               Text(
-                'Care Instructions',
+                'Care Guide',
                 style: GoogleFonts.comfortaa(
-                  fontSize: 14,
+                  fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: AppTheme.soilBrown,
+                  color: AppTheme.leafGreen,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              _buildInstructionChip(Icons.water_drop, 'Every ${rec.frequencyDays} days', AppTheme.waterBlue),
-              const SizedBox(width: 8),
-              _buildInstructionChip(Icons.local_drink, '${rec.amountML}mL', AppTheme.leafGreen),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            rec.description,
-            style: GoogleFonts.quicksand(
-              fontSize: 13,
-              color: AppTheme.soilBrown.withValues(alpha: 0.7),
-              fontStyle: FontStyle.italic,
-            ),
-          ),
+          _buildCareRow('💧', 'Water', 'Every ${rec.frequencyDays} days'),
+          _buildCareRow('☀️', 'Light', widget.plant.speciesInfo?.lightRequirement ?? 'Moderate'),
+          _buildCareRow('🌡️', 'Humidity', widget.plant.speciesInfo?.humidityPreference ?? 'Average'),
         ],
       ),
     );
   }
 
-  Widget _buildInstructionChip(IconData icon, String text, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
+  Widget _buildCareRow(String emoji, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 6),
+          Text(emoji, style: const TextStyle(fontSize: 16)),
+          const SizedBox(width: 10),
           Text(
-            text,
+            label,
             style: GoogleFonts.quicksand(
-              fontSize: 13,
+              fontSize: 14,
+              color: AppTheme.soilBrown.withValues(alpha: 0.7),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            style: GoogleFonts.quicksand(
+              fontSize: 14,
               fontWeight: FontWeight.w600,
-              color: color,
+              color: AppTheme.soilBrown,
             ),
           ),
         ],
@@ -313,12 +409,12 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
   Widget _buildSectionHeader(String title, IconData icon, Color color, {int? count}) {
     return Row(
       children: [
-        Icon(icon, color: color, size: 18),
+        Icon(icon, color: color, size: 20),
         const SizedBox(width: 8),
         Text(
           title,
           style: GoogleFonts.comfortaa(
-            fontSize: 14,
+            fontSize: 16,
             fontWeight: FontWeight.bold,
             color: color,
           ),
@@ -328,7 +424,7 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: color,
+              color: color.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
@@ -336,7 +432,7 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
               style: GoogleFonts.quicksand(
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: color,
               ),
             ),
           ),
@@ -345,26 +441,25 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
     );
   }
 
-  Widget _buildReminderCard(CareReminder reminder, {required bool isActionable}) {
-    final isOverdue = reminder.isOverdue;
+  Widget _buildReminderCard(CareReminder reminder, {bool isActionable = false}) {
+    final bgColor = isActionable
+        ? (reminder.isOverdue 
+            ? AppTheme.terracotta.withValues(alpha: 0.08)
+            : AppTheme.sunYellow.withValues(alpha: 0.08))
+        : Colors.white;
+
+    final borderColor = isActionable
+        ? (reminder.isOverdue
+            ? AppTheme.terracotta.withValues(alpha: 0.3)
+            : AppTheme.sunYellow.withValues(alpha: 0.3))
+        : AppTheme.softSage;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: bgColor,
         borderRadius: BorderRadius.circular(16),
-        border: isActionable
-            ? Border.all(
-                color: isOverdue ? AppTheme.terracotta : AppTheme.leafGreen,
-                width: 2,
-              )
-            : null,
-        boxShadow: [
-          BoxShadow(
-            color: (isOverdue ? AppTheme.terracotta : AppTheme.leafGreen).withValues(alpha: 0.1),
-            blurRadius: 8,
-          ),
-        ],
+        border: Border.all(color: borderColor),
       ),
       child: Material(
         color: Colors.transparent,
@@ -377,117 +472,86 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
               children: [
                 // Care type icon
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 44,
+                  height: 44,
                   decoration: BoxDecoration(
-                    color: isActionable
-                        ? (isOverdue ? AppTheme.terracotta : AppTheme.leafGreen).withValues(alpha: 0.15)
-                        : AppTheme.softSage.withValues(alpha: 0.3),
+                    color: AppTheme.softSage.withValues(alpha: 0.3),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Center(
-                    child: Text(reminder.careType.emoji, style: const TextStyle(fontSize: 24)),
+                    child: Text(reminder.displayEmoji, style: const TextStyle(fontSize: 22)),
                   ),
                 ),
                 const SizedBox(width: 14),
-                
-                // Details
+
+                // Content
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         reminder.displayLabel,
-                        style: GoogleFonts.comfortaa(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        style: GoogleFonts.quicksand(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: AppTheme.soilBrown,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            isOverdue ? Icons.warning_amber : Icons.schedule,
-                            size: 14,
-                            color: isOverdue
-                                ? AppTheme.terracotta
-                                : isActionable
-                                    ? AppTheme.leafGreen
-                                    : AppTheme.soilBrown.withValues(alpha: 0.5),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            reminder.dueLabel,
-                            style: GoogleFonts.quicksand(
-                              fontSize: 13,
-                              fontWeight: isActionable ? FontWeight.w600 : FontWeight.normal,
-                              color: isOverdue
-                                  ? AppTheme.terracotta
-                                  : isActionable
-                                      ? AppTheme.leafGreen
-                                      : AppTheme.soilBrown.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '• ${reminder.frequencyLabel}',
-                            style: GoogleFonts.quicksand(
-                              fontSize: 12,
-                              color: AppTheme.soilBrown.withValues(alpha: 0.5),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (reminder.notes != null && reminder.notes!.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          reminder.notes!,
-                          style: GoogleFonts.quicksand(
-                            fontSize: 12,
-                            color: AppTheme.soilBrown.withValues(alpha: 0.6),
-                            fontStyle: FontStyle.italic,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                      const SizedBox(height: 2),
+                      Text(
+                        reminder.frequencyLabel,
+                        style: GoogleFonts.quicksand(
+                          fontSize: 13,
+                          color: AppTheme.soilBrown.withValues(alpha: 0.6),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
-                
-                // Action button
-                if (isActionable)
-                  GestureDetector(
-                    onTap: () => _completeReminder(reminder),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+
+                // Due status & action
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppTheme.leafGreen,
-                        borderRadius: BorderRadius.circular(12),
+                        color: reminder.isOverdue
+                            ? AppTheme.terracotta.withValues(alpha: 0.15)
+                            : reminder.isDueToday
+                                ? AppTheme.sunYellow.withValues(alpha: 0.15)
+                                : AppTheme.leafGreen.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.check, color: Colors.white, size: 18),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Done',
-                            style: GoogleFonts.quicksand(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
+                      child: Text(
+                        reminder.dueLabel,
+                        style: GoogleFonts.quicksand(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: reminder.isOverdue
+                              ? AppTheme.terracotta
+                              : reminder.isDueToday
+                                  ? AppTheme.sunYellow
+                                  : AppTheme.leafGreen,
+                        ),
                       ),
                     ),
-                  )
-                else
-                  Icon(
-                    Icons.chevron_right,
-                    color: AppTheme.soilBrown.withValues(alpha: 0.3),
-                  ),
+                    if (isActionable) ...[
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () => _completeReminder(reminder),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: AppTheme.leafGreen,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.check, color: Colors.white, size: 18),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -500,8 +564,7 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(20),
+      builder: (_) => Container(
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -510,6 +573,7 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
+              margin: const EdgeInsets.only(top: 12),
               width: 40,
               height: 4,
               decoration: BoxDecoration(
@@ -517,41 +581,43 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Text(reminder.careType.emoji, style: const TextStyle(fontSize: 32)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        reminder.displayLabel,
-                        style: GoogleFonts.comfortaa(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.soilBrown,
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Text(reminder.displayEmoji, style: const TextStyle(fontSize: 32)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reminder.displayLabel,
+                          style: GoogleFonts.quicksand(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.soilBrown,
+                          ),
                         ),
-                      ),
-                      Text(
-                        reminder.frequencyLabel,
-                        style: GoogleFonts.quicksand(
-                          fontSize: 13,
-                          color: AppTheme.leafGreen,
+                        Text(
+                          reminder.frequencyLabel,
+                          style: GoogleFonts.quicksand(
+                            fontSize: 14,
+                            color: AppTheme.soilBrown.withValues(alpha: 0.6),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 20),
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.check_circle, color: AppTheme.leafGreen),
-              title: Text('Mark as Complete', style: GoogleFonts.quicksand(fontWeight: FontWeight.w600)),
+              title: Text('Mark as Done', style: GoogleFonts.quicksand(fontWeight: FontWeight.w600)),
               onTap: () {
-                Navigator.pop(ctx);
+                Navigator.pop(context);
                 _completeReminder(reminder);
               },
             ),
@@ -559,7 +625,7 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
               leading: const Icon(Icons.delete_outline, color: AppTheme.terracotta),
               title: Text('Delete Reminder', style: GoogleFonts.quicksand(fontWeight: FontWeight.w600)),
               onTap: () {
-                Navigator.pop(ctx);
+                Navigator.pop(context);
                 _deleteReminder(reminder);
               },
             ),
@@ -571,93 +637,52 @@ class _PlantCareScheduleScreenState extends State<PlantCareScheduleScreen> {
   }
 
   Widget _buildEmptyState() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppTheme.softSage.withValues(alpha: 0.2),
-        borderRadius: BorderRadius.circular(16),
-      ),
+    return Center(
       child: Column(
         children: [
-          const Text('📅', style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 40),
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.leafGreen.withValues(alpha: 0.15),
+                  blurRadius: 30,
+                ),
+              ],
+            ),
+            child: const Text('📅', style: TextStyle(fontSize: 48)),
+          ),
+          const SizedBox(height: 20),
           Text(
-            'No care reminders yet',
+            'No reminders set',
             style: GoogleFonts.comfortaa(
-              fontSize: 16,
+              fontSize: 18,
               fontWeight: FontWeight.bold,
               color: AppTheme.soilBrown,
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'Set up reminders to keep ${widget.plant.nickname} healthy',
+            'Add reminders to track care tasks\nfor ${widget.plant.nickname}',
             style: GoogleFonts.quicksand(
-              fontSize: 13,
+              fontSize: 14,
               color: AppTheme.soilBrown.withValues(alpha: 0.7),
+              height: 1.5,
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              OutlinedButton.icon(
-                onPressed: _addDefaultReminders,
-                icon: const Icon(Icons.auto_awesome, size: 16),
-                label: const Text('Add Defaults'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.leafGreen,
-                  side: const BorderSide(color: AppTheme.leafGreen),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ElevatedButton.icon(
-                onPressed: _addReminder,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Custom'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.leafGreen,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAllCaughtUp() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppTheme.leafGreen.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          const Text('🎉', style: TextStyle(fontSize: 32)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'All caught up!',
-                  style: GoogleFonts.comfortaa(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.leafGreen,
-                  ),
-                ),
-                Text(
-                  'No upcoming tasks scheduled',
-                  style: GoogleFonts.quicksand(
-                    fontSize: 13,
-                    color: AppTheme.soilBrown.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: _addDefaultReminders,
+            icon: const Icon(Icons.auto_fix_high),
+            label: const Text('Add Suggested Reminders'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.leafGreen,
+              side: const BorderSide(color: AppTheme.leafGreen),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
           ),
         ],

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme.dart';
 import '../../models/plant.dart';
+import '../../models/plant_measurements.dart' as plant_measurements;
 import '../../models/water_level.dart';
 import '../../models/watering_schedule.dart';
 import '../../models/sensor_data.dart';
@@ -22,7 +23,9 @@ import '../../models/forum.dart';
 import '../../services/care_reminder_service.dart';
 import '../widgets/plant_care_card.dart';
 import '../reminders/plant_care_schedule_screen.dart';
-
+//import 'package:permission_handler/permission_handler.dart';
+import '../widgets/plant_light_check_screen.dart';
+import 'pot_meter_screen.dart';
 
 class PlantDetailResult {
   final bool needsRefresh;
@@ -49,6 +52,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
   bool _needsDashboardRefresh = false;
   bool _isEditDialogOpen = false;
   bool _isLocationSheetOpen = false;
+  bool _childJustClosed = false;
 
   int? _updatedStreak;
   
@@ -59,6 +63,7 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     super.initState();
     _plant = widget.plant;
     _loadData();
+    
   }
   void _navigateToCareSchedule() {
   Navigator.push(
@@ -68,6 +73,43 @@ class _PlantDetailScreenState extends State<PlantDetailScreen> {
     ),
   );
 }
+
+void _navigateToPotMeter() async {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => PotMeterScreen(plant: _plant)),
+  );
+
+  // after coming back, reload from backend
+  _needsDashboardRefresh = true;
+}
+void _checkLight() {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => PlantLightCheckScreen(plant: _plant),
+    ),
+  );
+}
+void _navigateToLightMeter() {
+  // Navigate to your existing light meter screen
+  // Or implement light sensing here
+  Navigator.push(
+    context,
+    MaterialPageRoute(builder: (_) => PlantLightCheckScreen(plant: _plant)),
+  );
+}
+ApiService? _apiOrNull() {
+  final auth = Provider.of<AuthService>(context, listen: false);
+
+  if (auth.idToken == null || auth.idToken!.isEmpty) {
+    _showSnackBar('Session expired. Please log in again.', isError: true);
+    return null;
+  }
+  return ApiService(auth.idToken!);
+}
+
+
 void _navigateToCommunity() {
   // Use scientific name as subforumId (matches your DynamoDB structure)
   final scientificName = _plant.speciesInfo?.scientificName ?? _plant.species;
@@ -193,36 +235,48 @@ void _navigateToCommunity() {
   }
 
   Future<void> _refreshPlant() async {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final api = ApiService(auth.idToken!);
-    final updatedPlant = await api.getPlant(_plant.plantId);
-    debugPrint('🌱 Refreshed plant location: ${updatedPlant.environment?.location?.room} - ${updatedPlant.environment?.location?.windowProximity}');
-    setState(() => _plant = updatedPlant);
-  }
+  final api = _apiOrNull();
+  if (api == null) return;
+
+  final updatedPlant = await api.getPlant(_plant.plantId);
+  if (!mounted) return;
+
+  debugPrint('🌱 Refreshed plant location: ${updatedPlant.environment?.location?.room} - ${updatedPlant.environment?.location?.windowProximity}');
+  setState(() => _plant = updatedPlant);
+}
 
   Future<void> _loadData() async {
-    setState(() => _isLoading = true);
-    final auth = Provider.of<AuthService>(context, listen: false);
-    final api = ApiService(auth.idToken!);
+  setState(() => _isLoading = true);
 
-    if (_plant.hasDevice) {
-      try {
-        final waterLevel = await api.getWaterLevel(_plant.plantId);
-        if (mounted) setState(() => _waterLevel = waterLevel);
-      } catch (e) { debugPrint('WaterLevel failed: $e'); }
+  final auth = Provider.of<AuthService>(context, listen: false);
+  final api = _apiOrNull();
+  if (api == null) {
+    if (mounted) setState(() => _isLoading = false);
+    return;
+  }
 
-      try {
-        final schedule = await api.getWateringSchedule(_plant.plantId);
-        if (mounted) setState(() => _schedule = schedule);
-      } catch (e) { debugPrint('Schedule failed: $e'); }
+  if (_plant.hasDevice) {
+    try {
+      final waterLevel = await api.getWaterLevel(_plant.plantId);
+      if (mounted) setState(() => _waterLevel = waterLevel);
+    } catch (e) { debugPrint('WaterLevel failed: $e'); }
 
-      try {
+    try {
+      final schedule = await api.getWateringSchedule(_plant.plantId);
+      if (mounted) setState(() => _schedule = schedule);
+    } catch (e) { debugPrint('Schedule failed: $e'); }
+
+    try {
+      // auth.userId can also be null depending on your AuthService lifecycle
+      if (auth.userId != null) {
         final sensorData = await api.getLatestSensorData(_plant.plantId, auth.userId!);
         if (mounted) setState(() => _latestSensor = sensorData);
-      } catch (e) { debugPrint('Sensor data failed: $e'); }
-    }
-    if (mounted) setState(() => _isLoading = false);
+      }
+    } catch (e) { debugPrint('Sensor data failed: $e'); }
   }
+
+  if (mounted) setState(() => _isLoading = false);
+}
 
   Future<void> _triggerWatering() async {
     if (!_plant.hasDevice) { _showSnackBar('Please link a device first', isError: true); return; }
@@ -390,6 +444,7 @@ void _navigateToCommunity() {
           ),
           addedAt: _plant.addedAt,
           speciesInfo: _plant.speciesInfo,
+          measurements: _plant.measurements,
         );
       });
       
@@ -453,6 +508,7 @@ void _navigateToCommunity() {
           speciesInfo: speciesInfo != null 
               ? PlantSpeciesInfo.fromJson(speciesInfo)
               : _plant.speciesInfo,
+          measurements: _plant.measurements,
         );
       });
       
@@ -464,10 +520,8 @@ void _navigateToCommunity() {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop) Navigator.pop(context, PlantDetailResult(needsRefresh: _needsDashboardRefresh, updatedStreak: _updatedStreak));
-      },
+      canPop: true,
+      
       child: Scaffold(
         body: LeafBackground(
           leafCount: 4,
@@ -493,39 +547,56 @@ void _navigateToCommunity() {
                             physics: const AlwaysScrollableScrollPhysics(),
                             padding: const EdgeInsets.all(20),
                             child: Column(
-                              children: [
-                                PlantInfoCard(plant: _plant, onEdit: _showEditPlantDialog, onEditLocation: _showEditLocationDialog),
-                                const SizedBox(height: 20),
-                                QuickActionsRow(
-                                  plant: _plant, 
-                                  isWatering: _isWatering, 
-                                  onWater: _triggerWatering, 
-                                  onGallery: _navigateToGallery, 
-                                  onInfo: _navigateToPlantInfo, 
-                                  onCommunity: _navigateToCommunity,
-                                  onCare: _navigateToCareSchedule,  // ADD THIS
+                            children: [
+                              PlantInfoCard(plant: _plant, onEdit: _showEditPlantDialog, onEditLocation: _showEditLocationDialog),
+                              const SizedBox(height: 20),
+                              
+                              // Main 4-button row (Photo, Info, Forum, Water/Care)
+                              QuickActionsRow(
+                                plant: _plant, 
+                                isWatering: _isWatering, 
+                                onWater: _triggerWatering, 
+                                onGallery: _navigateToGallery, 
+                                onInfo: _navigateToPlantInfo, 
+                                onCommunity: _navigateToCommunity,
+                                onCare: _navigateToCareSchedule,
+                              ),
+                              const SizedBox(height: 16),
+                              
+                              // Tools row (Light Meter, Pot Meter) - SEPARATE from main actions
+                              PlantToolsRow(
+                                plant: _plant,
+                                onLightMeter: _navigateToLightMeter,
+                                onPotMeter: _navigateToPotMeter,
+                              ),
+                              const SizedBox(height: 20),
+                              
+                              // Show measurements card if measurements exist
+                              if (_plant.measurements?.hasMeasurements == true) ...[
+                                MeasurementsCard(
+                                  measurements: _plant.measurements! as plant_measurements.PlantMeasurements,
+                                  onTap: _navigateToPotMeter,
                                 ),
-                                const SizedBox(height: 20),
-                                if (_plant.hasDevice) ...[
-                                  ScheduleCard(schedule: _schedule, onTap: _navigateToSchedule),
-                                  const SizedBox(height: 16),
-                                  WaterLevelCard(waterLevel: _waterLevel, isRefilling: _isRefilling, onRefill: _refillWater),
-                                  const SizedBox(height: 16),
-                                  LatestHealthCheckCard(
-                                    plantId: _plant.plantId,
-                                    onTapGallery: _navigateToGallery,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  SensorDataCard(sensorData: _latestSensor),
-                                  
-                                ] else ...[
-                                  PlantCareCard(plant: _plant),
-                                  const SizedBox(height: 16),
-                                  LinkDeviceCard(onLink: _navigateToLinkDevice),
-                                ],
-                                const SizedBox(height: 80),
+                                const SizedBox(height: 16),
                               ],
-                            ),
+                              
+                              // Rest of your existing cards...
+                              if (_plant.hasDevice) ...[
+                                ScheduleCard(schedule: _schedule, onTap: _navigateToSchedule),
+                                const SizedBox(height: 16),
+                                WaterLevelCard(waterLevel: _waterLevel, isRefilling: _isRefilling, onRefill: _refillWater),
+                                const SizedBox(height: 16),
+                                LatestHealthCheckCard(plantId: _plant.plantId, onTapGallery: _navigateToGallery),
+                                const SizedBox(height: 16),
+                                SensorDataCard(sensorData: _latestSensor),
+                              ] else ...[
+                                PlantCareCard(plant: _plant),
+                                const SizedBox(height: 16),
+                                LinkDeviceCard(onLink: _navigateToLinkDevice),
+                              ],
+                              const SizedBox(height: 80),
+                            ],
+                          ),
                           ),
                         ),
                 ),

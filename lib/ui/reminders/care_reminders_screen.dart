@@ -21,6 +21,7 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
   final _service = CareReminderService();
   GroupedReminders? _grouped;
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -29,11 +30,33 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
   }
 
   Future<void> _loadReminders() async {
-    await _service.initialize();
     setState(() {
-      _grouped = _service.getGroupedReminders();
-      _isLoading = false;
+      _isLoading = true;
+      _error = null;
     });
+
+    try {
+      // Get auth context and initialize with API
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final api = ApiService(auth.idToken!);
+      
+      await _service.initialize(api: api, userId: auth.userId!);
+      
+      if (mounted) {
+        setState(() {
+          _grouped = _service.getGroupedReminders();
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to load reminders: $e');
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _completeReminder(CareReminder reminder) async {
@@ -43,6 +66,52 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
       _loadReminders();
     } catch (e) {
       _showSnackBar('Failed to complete: $e', isError: true);
+    }
+  }
+
+  Future<void> _deleteReminder(CareReminder reminder) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Delete Reminder?',
+          style: GoogleFonts.comfortaa(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.soilBrown,
+          ),
+        ),
+        content: Text(
+          'Remove "${reminder.displayLabel}" reminder for ${reminder.plantNickname}?',
+          style: GoogleFonts.quicksand(color: AppTheme.soilBrown),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.quicksand(
+                color: AppTheme.soilBrown.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.terracotta),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _service.deleteReminder(reminder.id);
+        _showSnackBar('Reminder deleted');
+        _loadReminders();
+      } catch (e) {
+        _showSnackBar('Failed to delete: $e', isError: true);
+      }
     }
   }
 
@@ -67,12 +136,14 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
               Expanded(
                 child: _isLoading
                     ? const Center(child: CircularProgressIndicator())
-                    : _grouped == null || _grouped!.totalCount == 0
-                        ? _buildEmptyState()
-                        : RefreshIndicator(
-                            onRefresh: _loadReminders,
-                            child: _buildTimeline(),
-                          ),
+                    : _error != null
+                        ? _buildErrorState()
+                        : _grouped == null || _grouped!.totalCount == 0
+                            ? _buildEmptyState()
+                            : RefreshIndicator(
+                                onRefresh: _loadReminders,
+                                child: _buildTimeline(),
+                              ),
               ),
             ],
           ),
@@ -195,6 +266,44 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
     );
   }
 
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('😵', style: TextStyle(fontSize: 48)),
+            const SizedBox(height: 16),
+            Text(
+              'Failed to load reminders',
+              style: GoogleFonts.comfortaa(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.soilBrown,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _error ?? 'Unknown error',
+              style: GoogleFonts.quicksand(
+                fontSize: 14,
+                color: AppTheme.soilBrown.withValues(alpha: 0.7),
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadReminders,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Try Again'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
@@ -256,39 +365,38 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
 
           // Today section
           if (_grouped!.today.isNotEmpty) ...[
-            _buildSectionHeader('TODAY', AppTheme.leafGreen, isToday: true),
+            _buildSectionHeader('TODAY', AppTheme.sunYellow),
             ..._grouped!.today.map((r) => _buildTimelineItem(r, isToday: true)),
           ],
 
           // Upcoming section
           if (_grouped!.upcoming.isNotEmpty) ...[
-            _buildSectionHeader('UPCOMING', AppTheme.soilBrown),
-            ..._buildUpcomingByDate(),
+            _buildSectionHeader('UPCOMING', AppTheme.leafGreen),
+            ..._grouped!.upcoming.map((r) => _buildTimelineItem(r)),
           ],
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 100), // Space for FAB
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeader(String label, Color color, {bool isOverdue = false, bool isToday = false}) {
+  Widget _buildSectionHeader(String title, Color color, {bool isOverdue = false}) {
     return Padding(
       padding: const EdgeInsets.only(top: 20, bottom: 12),
       child: Row(
         children: [
           Container(
-            width: 12,
-            height: 12,
+            width: 4,
+            height: 20,
             decoration: BoxDecoration(
-              color: isToday ? color : Colors.transparent,
-              border: Border.all(color: color, width: 2),
-              shape: BoxShape.circle,
+              color: color,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
           const SizedBox(width: 12),
           Text(
-            label,
+            title,
             style: GoogleFonts.quicksand(
               fontSize: 12,
               fontWeight: FontWeight.bold,
@@ -298,214 +406,143 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
           ),
           if (isOverdue) ...[
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${_grouped!.overdue.length}',
-                style: GoogleFonts.quicksand(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ),
+            Icon(Icons.warning_amber_rounded, size: 16, color: color),
           ],
         ],
       ),
     );
   }
 
-  List<Widget> _buildUpcomingByDate() {
-    final byDate = <String, List<CareReminder>>{};
-    
-    for (final r in _grouped!.upcoming) {
-      final dateKey = _formatDateHeader(r.nextDue);
-      byDate.putIfAbsent(dateKey, () => []).add(r);
-    }
-
-    final widgets = <Widget>[];
-    for (final entry in byDate.entries) {
-      widgets.add(_buildDateLabel(entry.key));
-      for (final r in entry.value) {
-        widgets.add(_buildTimelineItem(r));
-      }
-    }
-
-    return widgets;
-  }
-
-  String _formatDateHeader(DateTime date) {
-    final now = DateTime.now();
-    final diff = date.difference(DateTime(now.year, now.month, now.day)).inDays;
-    
-    if (diff == 1) return 'Tomorrow';
-    if (diff < 7) {
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      return days[date.weekday % 7];
-    }
-    
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[date.month - 1]} ${date.day}';
-  }
-
-  Widget _buildDateLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, top: 16, bottom: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: AppTheme.softSage,
-              shape: BoxShape.circle,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            label,
-            style: GoogleFonts.quicksand(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.soilBrown.withValues(alpha: 0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildTimelineItem(CareReminder reminder, {bool isOverdue = false, bool isToday = false}) {
-    final highlightColor = isOverdue 
-        ? AppTheme.terracotta 
-        : isToday 
-            ? AppTheme.leafGreen 
-            : null;
+    final bgColor = isOverdue
+        ? AppTheme.terracotta.withValues(alpha: 0.08)
+        : isToday
+            ? AppTheme.sunYellow.withValues(alpha: 0.08)
+            : Colors.white;
 
-    return Padding(
-      padding: const EdgeInsets.only(left: 5),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Timeline line
-          SizedBox(
-            width: 24,
-            child: Column(
-              children: [
-                Container(
-                  width: 2,
-                  height: 40,
-                  color: highlightColor?.withValues(alpha: 0.3) ?? AppTheme.softSage,
-                ),
-              ],
-            ),
-          ),
-          
-          // Card
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
+    final borderColor = isOverdue
+        ? AppTheme.terracotta.withValues(alpha: 0.3)
+        : isToday
+            ? AppTheme.sunYellow.withValues(alpha: 0.3)
+            : AppTheme.softSage;
+
+    return GestureDetector(
+      onTap: () => _showReminderOptions(reminder),
+      onLongPress: () => _showReminderOptions(reminder),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: borderColor),
+        ),
+        child: Row(
+          children: [
+            // Plant emoji
+            Container(
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: highlightColor != null
-                    ? Border.all(color: highlightColor.withValues(alpha: 0.3), width: 1.5)
-                    : null,
-                boxShadow: [
-                  BoxShadow(
-                    color: (highlightColor ?? AppTheme.leafGreen).withValues(alpha: 0.08),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
+                color: AppTheme.softSage.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: Text(reminder.plantEmoji, style: const TextStyle(fontSize: 24)),
+              ),
+            ),
+            const SizedBox(width: 14),
+
+            // Content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        reminder.displayEmoji,
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        reminder.displayLabel,
+                        style: GoogleFonts.quicksand(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.soilBrown,
+                        ),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    reminder.plantNickname,
+                    style: GoogleFonts.quicksand(
+                      fontSize: 13,
+                      color: AppTheme.soilBrown.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  if (reminder.notes != null && reminder.notes!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      reminder.notes!,
+                      style: GoogleFonts.quicksand(
+                        fontSize: 12,
+                        color: AppTheme.soilBrown.withValues(alpha: 0.5),
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ],
               ),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => _showReminderOptions(reminder),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Row(
-                      children: [
-                        // Plant emoji
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: (highlightColor ?? AppTheme.softSage).withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Text(reminder.plantEmoji, style: const TextStyle(fontSize: 24)),
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        
-                        // Content
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    reminder.displayEmoji,
-                                    style: const TextStyle(fontSize: 14),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      reminder.displayLabel,
-                                      style: GoogleFonts.comfortaa(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: AppTheme.soilBrown,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                reminder.plantNickname,
-                                style: GoogleFonts.quicksand(
-                                  fontSize: 13,
-                                  color: AppTheme.soilBrown.withValues(alpha: 0.6),
-                                ),
-                              ),
-                              if (isOverdue) ...[
-                                const SizedBox(height: 4),
-                                Text(
-                                  reminder.dueLabel,
-                                  style: GoogleFonts.quicksand(
-                                    fontSize: 12,
-                                    color: AppTheme.terracotta,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        
-                        // Complete button
-                        _CompleteButton(
-                          onTap: () => _completeReminder(reminder),
-                          isHighlighted: isOverdue || isToday,
-                        ),
-                      ],
+            ),
+
+            // Due label + action
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: isOverdue
+                        ? AppTheme.terracotta.withValues(alpha: 0.15)
+                        : isToday
+                            ? AppTheme.sunYellow.withValues(alpha: 0.15)
+                            : AppTheme.leafGreen.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    reminder.dueLabel,
+                    style: GoogleFonts.quicksand(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: isOverdue
+                          ? AppTheme.terracotta
+                          : isToday
+                              ? AppTheme.sunYellow
+                              : AppTheme.leafGreen,
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: () => _completeReminder(reminder),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.leafGreen,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.check, color: Colors.white, size: 18),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -514,61 +551,26 @@ class _CareRemindersScreenState extends State<CareRemindersScreen> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => _ReminderOptionsSheet(
+      builder: (_) => _ReminderOptionsSheet(
         reminder: reminder,
         onComplete: () {
-          Navigator.pop(ctx);
+          Navigator.pop(context);
           _completeReminder(reminder);
         },
         onEdit: () {
-          Navigator.pop(ctx);
-          _showEditReminder(reminder);
+          Navigator.pop(context);
+          // TODO: Implement edit
         },
-        onDelete: () async {
-          Navigator.pop(ctx);
-          await _service.deleteReminder(reminder.id);
-          _showSnackBar('Reminder deleted');
-          _loadReminders();
+        onDelete: () {
+          Navigator.pop(context);
+          _deleteReminder(reminder);
         },
-      ),
-    );
-  }
-
-  void _showEditReminder(CareReminder reminder) {
-    // TODO: Implement edit reminder dialog
-    _showSnackBar('Edit coming soon');
-  }
-}
-
-class _CompleteButton extends StatelessWidget {
-  final VoidCallback onTap;
-  final bool isHighlighted;
-
-  const _CompleteButton({required this.onTap, required this.isHighlighted});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isHighlighted ? AppTheme.leafGreen : AppTheme.softSage.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          'Complete',
-          style: GoogleFonts.quicksand(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isHighlighted ? Colors.white : AppTheme.leafGreen,
-          ),
-        ),
       ),
     );
   }
 }
 
+/// Options sheet for a reminder
 class _ReminderOptionsSheet extends StatelessWidget {
   final CareReminder reminder;
   final VoidCallback onComplete;
@@ -585,7 +587,6 @@ class _ReminderOptionsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -594,6 +595,7 @@ class _ReminderOptionsSheet extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
+            margin: const EdgeInsets.only(top: 12),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
@@ -601,53 +603,41 @@ class _ReminderOptionsSheet extends StatelessWidget {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 20),
-          
-          // Header
-          Row(
-            children: [
-              Text(reminder.plantEmoji, style: const TextStyle(fontSize: 32)),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${reminder.displayEmoji} ${reminder.displayLabel}',
-                      style: GoogleFonts.comfortaa(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.soilBrown,
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              children: [
+                Text(reminder.plantEmoji, style: const TextStyle(fontSize: 32)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${reminder.displayEmoji} ${reminder.displayLabel}',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.soilBrown,
+                        ),
                       ),
-                    ),
-                    Text(
-                      reminder.plantNickname,
-                      style: GoogleFonts.quicksand(
-                        fontSize: 14,
-                        color: AppTheme.soilBrown.withValues(alpha: 0.6),
+                      Text(
+                        '${reminder.plantNickname} • ${reminder.frequencyLabel}',
+                        style: GoogleFonts.quicksand(
+                          fontSize: 14,
+                          color: AppTheme.soilBrown.withValues(alpha: 0.6),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 8),
-          Text(
-            reminder.frequencyLabel,
-            style: GoogleFonts.quicksand(
-              fontSize: 13,
-              color: AppTheme.leafGreen,
+              ],
             ),
           ),
-          
-          const SizedBox(height: 24),
-          
-          // Actions
+          const Divider(height: 1),
           _OptionTile(
             icon: Icons.check_circle,
-            label: 'Mark as Complete',
+            label: 'Mark as Done',
             color: AppTheme.leafGreen,
             onTap: onComplete,
           ),
@@ -724,6 +714,11 @@ class _PlantPickerSheetState extends State<_PlantPickerSheet> {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService(auth.idToken!);
       final plants = await api.getPlants(auth.userId!);
+      
+      // Also initialize reminder service with auth
+      final reminderService = CareReminderService();
+      await reminderService.initialize(api: api, userId: auth.userId!);
+      
       if (mounted) {
         setState(() {
           _plants = plants;
@@ -749,6 +744,8 @@ class _PlantPickerSheetState extends State<_PlantPickerSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final reminderService = CareReminderService();
+    
     return Container(
       height: MediaQuery.of(context).size.height * 0.7,
       decoration: const BoxDecoration(
@@ -834,7 +831,8 @@ class _PlantPickerSheetState extends State<_PlantPickerSheet> {
                         itemCount: _plants.length,
                         itemBuilder: (context, index) {
                           final plant = _plants[index];
-                          return _buildPlantTile(plant);
+                          final hasReminders = reminderService.hasRemindersForPlant(plant.plantId);
+                          return _buildPlantTile(plant, hasReminders);
                         },
                       ),
           ),
@@ -843,10 +841,7 @@ class _PlantPickerSheetState extends State<_PlantPickerSheet> {
     );
   }
 
-  Widget _buildPlantTile(Plant plant) {
-    final reminderService = CareReminderService();
-    final hasReminders = reminderService.hasRemindersForPlant(plant.plantId);
-    
+  Widget _buildPlantTile(Plant plant, bool hasReminders) {
     return ListTile(
       onTap: () => _selectPlant(plant),
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),

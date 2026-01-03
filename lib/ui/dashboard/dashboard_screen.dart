@@ -13,8 +13,9 @@ import '../widgets/streak_widget.dart';
 import '../widgets/welcome_back_dialog.dart';
 import '../plant_detail/plant_detail_screen.dart';
 import './plant_card.dart';
-import 'add_plant_screen.dart';
+
 import '../reminders/care_reminders_screen.dart';
+import '../screens/plant_onboarding_wizard.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -38,7 +39,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadData();
-    _loadReminderCount();
   }
 
   void _loadData() {
@@ -52,14 +52,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _checkDailyStreak(plants);
       }
       
+      // Initialize reminders and auto-create for plants without sensors
+      _initializeReminders(plants);
+      
       return plants;
     });
     _loadStreak();
   }
 
-  Future<void> _loadReminderCount() async {
+  /// Initialize reminder service with proper auth and auto-create defaults
+  Future<void> _initializeReminders(List<Plant> plants) async {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
     final service = CareReminderService();
-    await service.initialize();
+    
+    // Initialize with API connection for DynamoDB sync
+    await service.initialize(api: api, userId: auth.userId!);
+    
+    // Auto-create default reminders for plants without reminders
+    for (final plant in plants) {
+      if (!service.hasRemindersForPlant(plant.plantId)) {
+        try {
+          await service.addDefaultRemindersForPlant(plant);
+          debugPrint('✅ Auto-created reminders for ${plant.nickname}');
+        } catch (e) {
+          debugPrint('⚠️ Failed to auto-create reminders for ${plant.nickname}: $e');
+        }
+      }
+    }
+    
+    // Update badge count
     if (mounted) {
       setState(() {
         _reminderCount = service.actionableCount;
@@ -135,13 +157,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {
       _loadData();
     });
-    _loadReminderCount();
   }
 
   void _navigateToAddPlant() async {
     final result = await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const AddPlantScreen()),
+      MaterialPageRoute(builder: (_) => const PlantOnboardingWizard()),
     );
     if (result == true) {
       _refreshPlants();
@@ -156,20 +177,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
 
-    if (result?.updatedStreak != null) {
-      setState(() => _userStreak = result!.updatedStreak!);
+    // 🔒 CRITICAL: If child popped without intent, do nothing
+    if (result == null) {
+      return;
     }
 
-    if (result?.needsRefresh == true) {
+    if (result.updatedStreak != null) {
+      setState(() => _userStreak = result.updatedStreak!);
+    }
+
+    if (result.needsRefresh) {
       _refreshPlants();
     }
   }
 
-  void _navigateToReminders() {
-    Navigator.push(
+  void _navigateToReminders() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CareRemindersScreen()),
-    ).then((_) => _loadReminderCount());
+    );
+    // Refresh reminder count after returning
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final api = ApiService(auth.idToken!);
+    final service = CareReminderService();
+    await service.initialize(api: api, userId: auth.userId!);
+    if (mounted) {
+      setState(() {
+        _reminderCount = service.actionableCount;
+      });
+    }
   }
 
   @override
@@ -252,43 +288,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
                   color: AppTheme.leafGreen.withValues(alpha: 0.1),
                   blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
-            child: const Text('🪴', style: TextStyle(fontSize: 24)),
+            child: const Text('🌿', style: TextStyle(fontSize: 28)),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 16),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Digital Garden',
+                  'My Garden',
                   style: GoogleFonts.comfortaa(
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: AppTheme.leafGreen,
                   ),
                 ),
                 Text(
-                  'Your plant twins await',
+                  'Your digital plant twins',
                   style: GoogleFonts.quicksand(
-                    fontSize: 13,
+                    fontSize: 14,
                     color: AppTheme.soilBrown.withValues(alpha: 0.7),
                   ),
                 ),
               ],
             ),
           ),
-          // Reminder bell icon
+          // Reminders button with badge
           GestureDetector(
             onTap: _navigateToReminders,
             child: Container(
@@ -306,9 +343,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  Icon(
-                    _reminderCount > 0 ? Icons.notifications_active : Icons.notifications_none,
-                    color: _reminderCount > 0 ? AppTheme.terracotta : AppTheme.soilBrown.withValues(alpha: 0.6),
+                  const Icon(Icons.notifications_outlined, 
+                    color: AppTheme.leafGreen, 
                     size: 24,
                   ),
                   if (_reminderCount > 0)

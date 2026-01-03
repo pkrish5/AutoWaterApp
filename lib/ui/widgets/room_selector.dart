@@ -7,34 +7,44 @@ class RoomLocation {
   final String room;
   final String? spot;
   final String? sunExposure;
+  final double? luxLevel;  // ADD THIS
 
-  RoomLocation({required this.room, this.spot, this.sunExposure});
+  RoomLocation({
+    required this.room,
+    this.spot,
+    this.sunExposure,
+    this.luxLevel,  // ADD THIS
+  });
 
-  Map<String, dynamic> toJson() => {
-    'room': room,
-    if (spot != null) 'windowProximity': spot,
-    if (sunExposure != null) 'sunExposure': sunExposure,
-  };
-
-  factory RoomLocation.fromJson(Map<String, dynamic>? json) {
-    if (json == null) return RoomLocation(room: 'Not set');
-    return RoomLocation(
-      room: json['room'] ?? 'Not set',
-      spot: json['windowProximity'],
-      sunExposure: json['sunExposure'],
-    );
-  }
+  bool get isSet => room != 'Not set';
 
   String get displayName {
-    if (spot != null && spot!.isNotEmpty) {
-      return '$room - $spot';
+    if (!isSet) return '📍 Not set';
+    final parts = <String>[room];
+    if (spot != null && spot!.isNotEmpty) parts.add(spot!);
+    if (luxLevel != null) {
+      final lightInfo = _getLightCategoryFromLux(luxLevel!);
+      parts.add(lightInfo);
     }
-    return room;
+    return parts.join(' • ');
   }
 
-  bool get isSet => room != 'Not set' && room.isNotEmpty;
-}
+  String _getLightCategoryFromLux(double lux) {
+    if (lux < 1000) return '🌑 ${lux.toInt()} lux';
+    if (lux < 10000) return '☁️ ${lux.toInt()} lux';
+    if (lux < 25000) return '⛅ ${lux.toInt()} lux';
+    return '☀️ ${lux.toInt()} lux';
+  }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'room': room,
+      if (spot != null) 'windowProximity': spot,
+      if (sunExposure != null) 'sunExposure': sunExposure,
+      if (luxLevel != null) 'luxLevel': luxLevel,  // ADD THIS
+    };
+  }
+}
 class RoomSelector extends StatelessWidget {
   final RoomLocation? selectedLocation;
   final ValueChanged<RoomLocation> onLocationChanged;

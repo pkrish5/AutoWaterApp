@@ -1,3 +1,5 @@
+import 'plant_profile.dart';
+import 'plant_measurements.dart' as pm;
 class Plant {
   final String plantId;
   final String userId;
@@ -10,6 +12,7 @@ class Plant {
   final PlantEnvironment? environment;
   final int? addedAt;
   final PlantSpeciesInfo? speciesInfo;
+  final pm.PlantMeasurements? measurements;
 
   Plant({
     required this.plantId,
@@ -23,6 +26,7 @@ class Plant {
     this.environment,
     this.addedAt,
     this.speciesInfo,
+    this.measurements,
   });
   static int? _parseEpoch(dynamic v) {
   if (v == null) return null;
@@ -50,6 +54,10 @@ class Plant {
       speciesInfo: json['speciesInfo'] != null
           ? PlantSpeciesInfo.fromJson(json['speciesInfo'])
           : null,
+       measurements: json['measurements'] != null
+        ? pm.PlantMeasurements.fromJson(json['measurements'])
+        : null,
+  
     );
   }
 
@@ -148,6 +156,55 @@ class Plant {
     }
   }
 }
+// class PlantMeasurements {
+//   final double? potHeightInches;
+//   final double? potWidthInches;
+//   final double? potVolumeML;
+//   final double? plantHeightInches;
+//   final String? measurementMethod;
+//   final String? measuredAt;
+
+//   PlantMeasurements({
+//     this.potHeightInches,
+//     this.potWidthInches,
+//     this.potVolumeML,
+//     this.plantHeightInches,
+//     this.measurementMethod,
+//     this.measuredAt,
+//   });
+
+//   factory PlantMeasurements.fromJson(Map<String, dynamic> json) {
+//     return PlantMeasurements(
+//       potHeightInches: (json['potHeightInches'] as num?)?.toDouble(),
+//       potWidthInches: (json['potWidthInches'] as num?)?.toDouble(),
+//       potVolumeML: (json['potVolumeML'] as num?)?.toDouble(),
+//       plantHeightInches: (json['plantHeightInches'] as num?)?.toDouble(),
+//       measurementMethod: json['measurementMethod'],
+//       measuredAt: json['measuredAt'],
+//     );
+//   }
+
+//   bool get hasMeasurements =>
+//       potHeightInches != null || potWidthInches != null;
+
+//   String get potSizeFormatted {
+//     if (potHeightInches == null || potWidthInches == null) return 'Not measured';
+//     return '${potHeightInches!.toStringAsFixed(1)}" × ${potWidthInches!.toStringAsFixed(1)}"';
+//   }
+
+//   String get volumeFormatted {
+//      if (potVolumeML == null) return '--';
+//      if (potVolumeML! >= 1000) {
+//        return '${(potVolumeML! / 1000).toStringAsFixed(1)}L';
+//      }
+//      return '${potVolumeML!.round()}mL';
+//    }
+
+//   String get plantHeightFormatted {
+//     if (plantHeightInches == null) return '--';
+//     return '${plantHeightInches!.toStringAsFixed(1)}"';
+//   }
+// }
 
 class PlantHealth {
   final double? moisture;
@@ -208,19 +265,21 @@ class PlantEnvironment {
     );
   }
 }
-
 class PlantLocation {
   final String? room;
   final String? windowProximity;
   final String? sunExposure;
   final PlantPosition? position;
+  final double? luxLevel;  // NEW FIELD
 
   PlantLocation({
     this.room,
     this.windowProximity,
     this.sunExposure,
     this.position,
+    this.luxLevel,
   });
+  
   static const Map<String, String> _roomEmojis = {
     'Living Room': '🛋️',
     'Kitchen': '🍳',
@@ -240,18 +299,23 @@ class PlantLocation {
     }
 
     final emoji = _roomEmojis[room!] ?? '📍';
-
-    final parts = <String>[
-      '$emoji $room',
-    ];
+    final parts = <String>['$emoji $room'];
 
     if (windowProximity != null && windowProximity!.trim().isNotEmpty) {
       parts.add(windowProximity!);
     }
+    
+  
 
     return parts.join(' • ');
   }
 
+  // String _getLightCategoryFromLux(double lux) {
+  //   if (lux < 1000) return '🌑 Low light';
+  //   if (lux < 10000) return '☁️ Bright indirect';
+  //   if (lux < 25000) return '⛅ Partial sun';
+  //   return '☀️ Full sun';
+  // }
 
   factory PlantLocation.fromJson(Map<String, dynamic> json) {
     return PlantLocation(
@@ -261,10 +325,26 @@ class PlantLocation {
       position: json['position'] != null 
           ? PlantPosition.fromJson(json['position']) 
           : null,
+      luxLevel: json['luxLevel'] != null 
+          ? (json['luxLevel'] as num).toDouble()
+          : null,
     );
   }
+  
+  Map<String, dynamic> toJson() {
+    return {
+      if (room != null) 'room': room,
+      if (windowProximity != null) 'windowProximity': windowProximity,
+      if (sunExposure != null) 'sunExposure': sunExposure,
+      if (position != null) 'position': {
+        'x': position!.x,
+        'y': position!.y,
+        'rotation': position!.rotation,
+      },
+      if (luxLevel != null) 'luxLevel': luxLevel,
+    };
+  }
 }
-
 class PlantPosition {
   final double x;
   final double y;
@@ -296,7 +376,9 @@ class PlantSpeciesInfo {
   final String? temperatureRange;
   final String? humidityPreference;
   final List<String>? tips;
-  final String? emoji; // Added emoji field
+  final String? emoji;
+    final CareProfile? careProfile; 
+
 
   PlantSpeciesInfo({
     required this.commonName,
@@ -310,6 +392,7 @@ class PlantSpeciesInfo {
     this.humidityPreference,
     this.tips,
     this.emoji,
+    this.careProfile, 
   });
 
   factory PlantSpeciesInfo.fromJson(Map<String, dynamic> json) {
@@ -325,6 +408,9 @@ class PlantSpeciesInfo {
       humidityPreference: json['humidityPreference'],
       tips: json['tips'] != null ? List<String>.from(json['tips']) : null,
       emoji: json['emoji'],
+      careProfile: json['careProfile'] != null   // ← ADD THESE 3 LINES
+          ? CareProfile.fromJson(json['careProfile'])
+          : null,
     );
   }
 }

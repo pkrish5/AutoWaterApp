@@ -10,6 +10,8 @@ import '../models/sensor_data.dart';
 import '../models/paginated_images.dart';
 import '../models/plant_profile.dart';
 import '../models/weekly_tasks.dart';
+import '../models/care_reminder.dart';
+
 
 class ApiService {
   final String authToken;
@@ -230,6 +232,8 @@ Future<void> linkDevice({
 
       if (response.statusCode == 200) {
         final json = jsonDecode(response.body);
+        print('🌿 RAW getPlant JSON: ${response.body}');
+
         print('🌿 getPlant environment in response: ${json['environment']}');
         return Plant.fromJson(json);
       } else {
@@ -242,22 +246,6 @@ Future<void> linkDevice({
 
   // ==================== WATER LEVEL ====================
 
-  Future<WaterLevel> getWaterLevel(String plantId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/plants/$plantId/water-level'),
-        headers: _headers,
-      );
-
-      if (response.statusCode == 200) {
-        return WaterLevel.fromJson(jsonDecode(response.body));
-      } else {
-        throw Exception("Failed to get water level: ${response.statusCode}");
-      }
-    } catch (e) {
-      throw Exception("Connection error: $e");
-    }
-  }
 
   Future<WaterLevel> refillWater(String plantId, {bool markFull = true, int? refillAmount}) async {
     try {
@@ -606,13 +594,14 @@ Future<void> linkDevice({
       throw Exception("$e");
     }
   }
-Future<void> updatePlant({
+  Future<void> updatePlant({
   required String plantId,
   String? nickname,
   String? species,
   Map<String, dynamic>? environment,
   Map<String, dynamic>? location,
   Map<String, dynamic>? speciesInfo,
+  Map<String, dynamic>? measurements,  // ADD THIS
 }) async {
   final body = <String, dynamic>{};
   if (nickname != null) body['nickname'] = nickname;
@@ -620,6 +609,7 @@ Future<void> updatePlant({
   if (environment != null) body['environment'] = environment;
   if (location != null) body['location'] = location;
   if (speciesInfo != null) body['speciesInfo'] = speciesInfo;
+  if (measurements != null) body['measurements'] = measurements;  // ADD THIS
 
   final response = await http.put(
     Uri.parse('${AppConstants.baseUrl}/plants/$plantId'),
@@ -631,8 +621,7 @@ Future<void> updatePlant({
     throw Exception('Failed to update plant: ${response.body}');
   }
 }
-
-
+ 
   Future<bool> respondToFriendRequest({
   required String userId,
   required String requestId,
@@ -869,6 +858,9 @@ Future<Map<String, dynamic>> generateAISchedule({
       }),
     );
 
+    print('🔥 Generate schedule response: ${response.statusCode}');  // Add
+    print('🔥 Response body: ${response.body}');  // Add
+
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     } else {
@@ -936,4 +928,335 @@ Future<UserPoints> getUserPoints(String userId) async {
     throw Exception("Connection error: $e");
   }
 }
+// 
+  Future<List<CareReminder>> getCareRemindersForUser(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders/user/$userId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> items = data['reminders'] ?? [];
+        return items.map((e) => CareReminder.fromJson(_convertReminder(e))).toList();
+      } else {
+        throw Exception("Failed to get reminders: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Get care reminders for a specific plant
+  Future<List<CareReminder>> getCareRemindersForPlant(String plantId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders/plant/$plantId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> items = data['reminders'] ?? [];
+        return items.map((e) => CareReminder.fromJson(_convertReminder(e))).toList();
+      } else {
+        throw Exception("Failed to get plant reminders: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Create a new care reminder
+  Future<CareReminder> createCareReminder({
+    required String plantId,
+    required String userId,
+    required String plantNickname,
+    required String plantEmoji,
+    required String careType,
+    String? customLabel,
+    required int frequencyDays,
+    required String nextDue,
+    String? notes,
+  }) async {
+    try {
+      final body = {
+        'plantId': plantId,
+        'userId': userId,
+        'plantNickname': plantNickname,
+        'plantEmoji': plantEmoji,
+        'careType': careType,
+        if (customLabel != null) 'customLabel': customLabel,
+        'frequencyDays': frequencyDays,
+        'nextDue': nextDue,
+        if (notes != null) 'notes': notes,
+      };
+
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return CareReminder.fromJson(_convertReminder(jsonDecode(response.body)));
+      } else {
+        throw Exception("Failed to create reminder: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Create default care reminders for a plant
+  Future<List<CareReminder>> createDefaultCareReminders({
+    required String plantId,
+    required String userId,
+    required String plantNickname,
+    required String plantEmoji,
+    required bool hasDevice,
+    required int waterFrequencyDays,
+  }) async {
+    try {
+      final body = {
+        'userId': userId,
+        'plantNickname': plantNickname,
+        'plantEmoji': plantEmoji,
+        'hasDevice': hasDevice,
+        'waterFrequencyDays': waterFrequencyDays,
+      };
+
+      final response = await http.post(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders/plant/$plantId/defaults'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> items = data['reminders'] ?? [];
+        return items.map((e) => CareReminder.fromJson(_convertReminder(e))).toList();
+      } else {
+        throw Exception("Failed to create default reminders: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Update a care reminder
+  Future<CareReminder> updateCareReminder({
+    required String reminderId,
+    String? careType,
+    String? customLabel,
+    int? frequencyDays,
+    String? nextDue,
+    bool? enabled,
+    String? notes,
+  }) async {
+    try {
+      final body = <String, dynamic>{};
+      if (careType != null) body['careType'] = careType;
+      if (customLabel != null) body['customLabel'] = customLabel;
+      if (frequencyDays != null) body['frequencyDays'] = frequencyDays;
+      if (nextDue != null) body['nextDue'] = nextDue;
+      if (enabled != null) body['enabled'] = enabled;
+      if (notes != null) body['notes'] = notes;
+
+      final response = await http.put(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders/$reminderId'),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        return CareReminder.fromJson(_convertReminder(jsonDecode(response.body)));
+      } else {
+        throw Exception("Failed to update reminder: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Mark a care reminder as complete and reschedule
+  Future<CareReminder> completeCareReminder(String reminderId) async {
+    try {
+      final response = await http.put(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders/$reminderId/complete'),
+        headers: _headers,
+        body: jsonEncode({}),
+      );
+
+      if (response.statusCode == 200) {
+        return CareReminder.fromJson(_convertReminder(jsonDecode(response.body)));
+      } else {
+        throw Exception("Failed to complete reminder: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Delete a care reminder
+  Future<void> deleteCareReminder(String reminderId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders/$reminderId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to delete reminder: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Delete all reminders for a plant
+  Future<void> deleteRemindersForPlant(String plantId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('${AppConstants.baseUrl}/care-reminders/plant/$plantId'),
+        headers: _headers,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to delete plant reminders: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+
+  /// Trigger refill reminder when water is low
+  Future<void> triggerRefillReminder(String plantId) async {
+  try {
+    await http.put(
+      Uri.parse('${AppConstants.baseUrl}/care-reminders/plant/$plantId/trigger-refill'),
+      headers: _headers,
+      body: jsonEncode({}),
+    );
+  } catch (e) {
+    print('Failed to trigger refill reminder: $e');
+  }
+}
+  /// Helper to convert server reminder format to local format
+  Map<String, dynamic> _convertReminder(Map<String, dynamic> serverData) {
+    return {
+      'id': serverData['reminderId'] ?? serverData['id'],
+      'plantId': serverData['plantId'],
+      'plantNickname': serverData['plantNickname'],
+      'plantEmoji': serverData['plantEmoji'] ?? '🪴',
+      'careType': serverData['careType'],
+      'customLabel': serverData['customLabel'],
+      'frequencyDays': serverData['frequencyDays'] ?? 7,
+      'lastCompleted': serverData['lastCompleted'],
+      'nextDue': serverData['nextDue'],
+      'enabled': serverData['enabled'] ?? true,
+      'notes': serverData['notes'],
+    };
+  }
+
+
+// ============================================
+// UPDATE YOUR EXISTING getWaterLevel METHOD 
+// (around line 245) to trigger refill reminder:
+// ============================================
+
+  Future<WaterLevel> getWaterLevel(String plantId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('${AppConstants.baseUrl}/plants/$plantId/water-level'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final waterLevel = WaterLevel.fromJson(jsonDecode(response.body));
+        
+        // Auto-trigger refill reminder if water is low
+        if (waterLevel.needsRefill) {
+          triggerRefillReminder(plantId);
+        }
+        
+        return waterLevel;
+      } else {
+        throw Exception("Failed to get water level: ${response.statusCode}");
+      }
+    } catch (e) {
+      throw Exception("Connection error: $e");
+    }
+  }
+  Future<Map<String, dynamic>> analyzeOnboardingImage({
+  required String userId,
+  required String imageData,
+}) async {
+  try {
+    final body = {
+      'userId': userId,
+      'imageData': imageData,
+    };
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/plants/analyze-onboarding'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to analyze image: ${response.statusCode}');
+    }
+  } catch (e) {
+    throw Exception('$e');
+  }
+}
+
+/// Add plant with optional pre-generated plantId (from image analysis)
+/// This links the plant to an already-uploaded image
+Future<Plant?> addPlantWithImage({
+  required String userId,
+  required String nickname,
+  required String species,
+  String? plantId,           // From analyzeOnboardingImage
+  String? esp32DeviceId,
+  Map<String, dynamic>? environment,
+  Map<String, dynamic>? speciesInfo,
+  Map<String, dynamic>? measurements,
+}) async {
+  try {
+    final body = {
+      'nickname': nickname,
+      'species': species,
+      if (plantId != null) 'plantId': plantId,
+      if (esp32DeviceId != null && esp32DeviceId.isNotEmpty) 
+        'esp32DeviceId': esp32DeviceId,
+      if (environment != null) 'environment': environment,
+      if (speciesInfo != null) 'speciesInfo': speciesInfo,
+      if (measurements != null) 'measurements': measurements,
+    };
+
+    final response = await http.post(
+      Uri.parse('${AppConstants.baseUrl}/users/$userId/plants'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      return Plant.fromJson(data);
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? "Failed to add plant: ${response.statusCode}");
+    }
+  } catch (e) {
+    throw Exception("$e");
+  }
+}
+
+  
 }

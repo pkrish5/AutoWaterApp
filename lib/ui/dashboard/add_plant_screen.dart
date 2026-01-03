@@ -10,6 +10,8 @@ import '../../models/plant.dart';
 import '../widgets/leaf_background.dart';
 import '../widgets/room_selector.dart';
 import '../widgets/searchable_species_selector.dart';
+import '../widgets/lux_meter_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class AddPlantScreen extends StatefulWidget {
   const AddPlantScreen({super.key});
@@ -29,6 +31,8 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
   bool _isLoading = false;
   bool _isLoadingProfiles = true;
   bool _showDeviceField = false;
+  double? _measuredLux;
+
   
   // Room/Location
   RoomLocation? _selectedLocation;
@@ -109,9 +113,16 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
       // Build environment with location
       Map<String, dynamic>? environment;
       if (_selectedLocation != null && _selectedLocation!.isSet) {
+        final locationJson = _selectedLocation!.toJson();
+        
+        // Add lux level if measured
+        if (_measuredLux != null) {
+          locationJson['luxLevel'] = _measuredLux;
+        }
+        
         environment = {
           'type': 'indoor',
-          'location': _selectedLocation!.toJson(),
+          'location': locationJson,
         };
       }
 
@@ -148,7 +159,116 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
       if (mounted) setState(() => _isLoading = false);
     }
   }
+String _getLightCategoryName(double lux) {
+  if (lux < 1000) return 'Low light';
+  if (lux < 10000) return 'Bright indirect';
+  if (lux < 25000) return 'Partial sun';
+  return 'Full sun';
+}
 
+Future<void> _measureLuxLevel() async {
+  final status = await Permission.camera.request();
+  if (!status.isGranted) {
+    _showSnackBar('Camera permission is required to measure light', isError: true);
+    return;
+  }
+
+  final result = await Navigator.push<double>(
+    context,
+    MaterialPageRoute(builder: (_) => const LuxMeterScreen()),
+  );
+
+  if (result != null && mounted) {
+    setState(() => _measuredLux = result);
+    _showSnackBar(
+      'Light level: ${result.toInt()} lux (${_getLightCategoryName(result)})',
+    );
+  }
+}
+
+Widget _buildLuxMeterSection() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Light Level (Optional)',
+        style: GoogleFonts.quicksand(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppTheme.soilBrown,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.softSage),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(16),
+            onTap: _measureLuxLevel,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppTheme.sunYellow.withValues(alpha:0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      Icons.light_mode,
+                      color: AppTheme.sunYellow,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _measuredLux != null 
+                              ? 'Light Level Measured'
+                              : 'Measure Light Level',
+                          style: GoogleFonts.quicksand(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.soilBrown,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _measuredLux != null
+                              ? '${_measuredLux!.toInt()} lux - ${_getLightCategoryName(_measuredLux!)}'
+                              : 'Use your camera to measure light',
+                          style: GoogleFonts.quicksand(
+                            fontSize: 13,
+                            color: AppTheme.soilBrown.withValues(alpha:0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    _measuredLux != null ? Icons.check_circle : Icons.chevron_right,
+                    color: _measuredLux != null 
+                        ? AppTheme.leafGreen 
+                        : AppTheme.soilBrown.withValues(alpha:0.3),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
   Future<void> _createRemindersForNewPlant({
     required Plant plant,
     required bool hasDevice,
@@ -204,6 +324,8 @@ class _AddPlantScreenState extends State<AddPlantScreen> {
                       ],
                       const SizedBox(height: 24),
                       _buildLocationSelector(),
+                      const SizedBox(height: 24),
+                      _buildLuxMeterSection(),
                       const SizedBox(height: 24),
                       _buildDeviceLinkingToggle(),
                       const SizedBox(height: 36),
