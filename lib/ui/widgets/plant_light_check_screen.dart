@@ -67,7 +67,7 @@ class _PlantLightCheckScreenState extends State<PlantLightCheckScreen> {
             final absoluteDifference = (smoothedLux - _currentLux).abs();
             
             if (absoluteDifference > 200 || _currentLux == 0) {
-              debugPrint('💡 Raw: $rawLux lux → Smoothed: ${smoothedLux.toInt()} lux');
+              //debugPrint('💡 Raw: $rawLux lux → Smoothed: ${smoothedLux.toInt()} lux');
               
               setState(() {
                 _currentLux = smoothedLux;

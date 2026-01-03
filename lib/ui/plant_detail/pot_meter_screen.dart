@@ -48,20 +48,14 @@ class _PotMeterScreenState extends State<PotMeterScreen> {
   @override
   void initState() {
     super.initState();
-    debugPrint('🌱 PotMeterScreen initState - Platform: ${Platform.operatingSystem}');
-    debugPrint('🌱 Plant: ${widget.plant.nickname} (${widget.plant.plantId})');
     _checkPermission();
   }
 
   Future<void> _checkPermission() async {
-    debugPrint('🌱 Starting permission check...');
     
     try {
       final cameraStatus = await Permission.camera.request();
-      debugPrint('🌱 Camera permission status: $cameraStatus');
-      debugPrint('🌱 isGranted: ${cameraStatus.isGranted}');
-      debugPrint('🌱 isDenied: ${cameraStatus.isDenied}');
-      debugPrint('🌱 isPermanentlyDenied: ${cameraStatus.isPermanentlyDenied}');
+
 
       if (mounted) {
         setState(() {
@@ -69,15 +63,13 @@ class _PotMeterScreenState extends State<PotMeterScreen> {
           _hasPermission = cameraStatus.isGranted;
           if (!cameraStatus.isGranted) {
             _error = 'Camera permission required for AR measurement';
-            debugPrint('🌱 Permission NOT granted, error: $_error');
           } else {
             debugPrint('🌱 Permission granted!');
           }
         });
       }
     } catch (e, stack) {
-      debugPrint('🌱 Permission check EXCEPTION: $e');
-      debugPrint('🌱 Stack trace: $stack');
+
       if (mounted) {
         setState(() {
           _isChecking = false;
@@ -90,7 +82,6 @@ class _PotMeterScreenState extends State<PotMeterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint('🌱 Build called - isChecking: $_isChecking, hasPermission: $_hasPermission, error: $_error');
     
     if (_isChecking) {
       return const Scaffold(
@@ -109,7 +100,6 @@ class _PotMeterScreenState extends State<PotMeterScreen> {
 
     // If no permission, go to manual screen
     if (!_hasPermission) {
-      debugPrint('🌱 Routing to MANUAL screen (no permission)');
       return PotMeterManualScreen(
         plant: widget.plant,
         arUnavailableReason: _error,
@@ -118,13 +108,10 @@ class _PotMeterScreenState extends State<PotMeterScreen> {
 
     // Route to platform-specific AR screen
     if (Platform.isIOS) {
-      debugPrint('🌱 Routing to iOS AR screen');
       return ios_ar.PotMeterARiOS(plant: widget.plant);
     } else if (Platform.isAndroid) {
-      debugPrint('🌱 Routing to Android AR screen');
       return android_ar.PotMeterARAndroid(plant: widget.plant);
     } else {
-      debugPrint('🌱 Routing to MANUAL screen (unsupported platform)');
       return PotMeterManualScreen(
         plant: widget.plant,
         arUnavailableReason: 'AR not supported on this platform',
