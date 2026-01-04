@@ -153,6 +153,7 @@ void _showAddFriendDialog() {
   }
 
   void _viewFriendGarden(Friend friend) {
+    //debugPrint("Friend tapped: odIn=${friend.odIn}, name=${friend.odInname}, streak=${friend.streak}");
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => FriendGardenScreen(friend: friend)),

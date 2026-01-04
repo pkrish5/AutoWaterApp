@@ -676,24 +676,27 @@ Future<void> linkDevice({
 
   // Get friend's plants (if they have shared access)
   Future<List<Plant>> getFriendPlants(String userId, String friendId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('${AppConstants.baseUrl}/users/$userId/friends/$friendId/plants'),
-        headers: _headers,
-      );
+  final uri = Uri.parse('${AppConstants.baseUrl}/users/$userId/friends/$friendId/plants');
+  final response = await http.get(uri, headers: _headers);
 
-      if (response.statusCode == 200) {
-        final List data = jsonDecode(response.body);
-        return data.map((json) => Plant.fromJson(json)).toList();
-      } else if (response.statusCode == 403) {
-        throw Exception("This user's garden is private");
-      } else {
-        throw Exception("Failed to get friend's plants: ${response.statusCode}");
-      }
-    } catch (e) {
-      throw Exception("$e");
+  final decoded = jsonDecode(response.body);
+
+  if (response.statusCode != 200) {
+    if (decoded is Map<String, dynamic>) {
+      throw Exception(decoded['error'] ?? decoded['message'] ?? 'Request failed');
     }
+    throw Exception('Request failed (${response.statusCode})');
   }
+
+  if (decoded is! List) {
+    throw Exception('Expected list but got ${decoded.runtimeType}: ${response.body}');
+  }
+
+  return decoded
+      .map((e) => Plant.fromJson(e as Map<String, dynamic>))
+      .toList();
+}
+
 
 Future<PaginatedImages> getPlantImagesPaginated(
   String plantId, {
